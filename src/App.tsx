@@ -9,8 +9,8 @@ function App() {
       theme={{
         algorithm: theme.darkAlgorithm,
         token: {
-          colorPrimary: '#25a425', // Softer, less neon green
-          colorInfo: '#2bb8b8', // Softer cyan
+          colorPrimary: '#3cf73c',
+          colorInfo: '#41f4f4',
           borderRadius: 0,
           fontFamily: 'Roboto Mono, Share Tech Mono, monospace',
         },

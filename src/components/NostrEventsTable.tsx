@@ -1010,13 +1010,13 @@ const NostrEventsTable: React.FC = () => {
                 }}
                 title={text}
               >
-                <ExportOutlined style={{ fontSize: '16px', color: '#8c8c8c' }} />
+                <ExportOutlined style={{ fontSize: '16px' }} />
               </a>
             );
           } else {
             return (
               <a href={text} target="_blank" rel="noopener noreferrer" title={text}>
-                <ExportOutlined style={{ fontSize: '16px', color: '#8c8c8c' }} />
+                <ExportOutlined style={{ fontSize: '16px' }} />
               </a>
             );
           }
@@ -1262,7 +1262,7 @@ const NostrEventsTable: React.FC = () => {
               <Space wrap style={{ flex: 1 }}>
                 <Select
                   style={{ width: 180 }}
-                  placeholder="Filter by Source"
+                  placeholder="Source"
                   allowClear
                   onChange={handleSourceFilterChange}
                   value={sourceFilter}
@@ -1270,7 +1270,7 @@ const NostrEventsTable: React.FC = () => {
                 />
                 <Select
                   style={{ width: 180 }}
-                  placeholder="Filter by Type"
+                  placeholder="Type"
                   allowClear
                   onChange={handleTypeFilterChange}
                   value={typeFilter}
@@ -1278,7 +1278,7 @@ const NostrEventsTable: React.FC = () => {
                 />
                 <Select
                   style={{ width: 180 }}
-                  placeholder="Filter by Currency"
+                  placeholder="Currency"
                   allowClear
                   onChange={handleCurrencyFilterChange}
                   value={currencyFilter}
@@ -1296,7 +1296,7 @@ const NostrEventsTable: React.FC = () => {
                 />
                 <Input
                   style={{ width: 200 }}
-                  placeholder="Filter by Payment Method"
+                  placeholder="Payment Method"
                   value={paymentMethodFilter}
                   onChange={handlePaymentMethodFilterChange}
                   allowClear
