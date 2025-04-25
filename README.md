@@ -1,46 +1,77 @@
-# Getting Started with Create React App
+# Nostr Events Viewer
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A React application that connects to Nostr relays and displays events of kind 38383 in a paginated table.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Connects to multiple Nostr relays, including the specified `wss://nostr.satstralia.com`
+- Fetches and displays all available events of kind 38383
+- Filters out events with an "s" tag equal to "pending"
+- Displays event data in a table with the following columns:
+  - Source (value of "y" tag)
+  - Is (value of "k" tag)
+  - Amount (value of "amt" tag)
+  - Link (value of "source" tag)
+- Paginates the events table (20 items per page)
+- Sorts events by creation time (newest first)
 
-### `yarn start`
+## Technologies Used
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- React with TypeScript
+- nostr-tools for Nostr protocol communication
+- Ant Design for UI components
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Getting Started
 
-### `yarn test`
+### Prerequisites
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Node.js (v14 or later)
+- Yarn or npm
 
-### `yarn build`
+### Installation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. Clone the repository
+2. Install dependencies:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+yarn install
+# or
+npm install
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Running the Application
 
-### `yarn eject`
+To start the development server:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```bash
+yarn start
+# or
+npm start
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+This will run the app in development mode. Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+### Building for Production
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+To build the app for production:
 
-## Learn More
+```bash
+yarn build
+# or
+npm run build
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+This creates optimized files in the `build` folder, ready for deployment.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Project Structure
+
+- `src/components/NostrEventsTable.tsx`: Main component that handles connecting to relays and displaying events
+- `src/App.tsx`: App component that integrates the NostrEventsTable
+- `src/App.css`: Custom styles for the application
+- `public/index.html`: HTML entry point
+
+## Notes on Nostr Integration
+
+This application uses the [nostr-tools](https://github.com/nbd-wtf/nostr-tools) library to connect to Nostr relays and fetch events. It connects to several relays for redundancy and better discovery of events.
+
+Events are filtered to specifically show kind 38383 events, and any event with an "s" tag value of "pending" is excluded from the results.
