@@ -11,6 +11,8 @@
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
     "antd": "^5.15.1",
+    "currency-symbol-map": "^5.1.0",
+    "iso-country-currency": "^0.7.2",
     "nostr-tools": "^2.12.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
