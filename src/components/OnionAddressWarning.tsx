@@ -20,29 +20,51 @@ const OnionAddressWarning: React.FC<OnionAddressWarningProps> = ({
 }) => {
   return (
     <Modal
-      title={<Title level={4}>Tor Network Warning</Title>}
+      title={<Title level={4}>{'>>'} TOR NETWORK WARNING_</Title>}
       open={visible}
       onCancel={onClose}
       footer={null}
       centered
+      className="digital-noise"
     >
       <div style={{ padding: '10px 0' }}>
-        <Paragraph>
-          <strong>You're trying to access an .onion address:</strong>
+        <Paragraph style={{ color: '#41f4f4', fontWeight: 'bold' }}>
+          <strong>[!] ATTEMPTING TO ACCESS ONION ADDRESS:</strong>
         </Paragraph>
-        <Paragraph code style={{ wordBreak: 'break-all' }}>
+        <Paragraph
+          code
+          style={{
+            wordBreak: 'break-all',
+            backgroundColor: '#000',
+            border: '1px solid #3cf73c',
+            padding: '10px',
+            color: '#3cf73c',
+            fontFamily: 'Roboto Mono, Share Tech Mono, monospace',
+            fontSize: '15px',
+            fontWeight: 400,
+            textShadow: '0 0 1px rgba(60, 247, 60, 0.2)',
+          }}
+        >
           {address}
         </Paragraph>
-        <Paragraph>
+        <Paragraph
+          style={{
+            fontFamily: 'Roboto Mono, Share Tech Mono, monospace',
+            fontSize: '15px',
+            lineHeight: 1.5,
+            color: '#3cf73c',
+            textShadow: '0 0 1px rgba(60, 247, 60, 0.2)',
+          }}
+        >
           .onion addresses require the Tor Browser to work properly. If you're not using Tor
           Browser, the link may not load correctly.
         </Paragraph>
         <Space direction="vertical" style={{ width: '100%', marginTop: '20px' }}>
           <Button type="primary" onClick={onGo} block>
-            Go Anyway
+            // PROCEED ANYWAY
           </Button>
           <Button onClick={onDownloadTor} block>
-            Download Tor Browser
+            // DOWNLOAD TOR BROWSER
           </Button>
         </Space>
       </div>

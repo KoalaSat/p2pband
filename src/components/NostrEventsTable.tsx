@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Pagination, Typography, Spin, Alert, Tag, Select, Space, Card, Input } from 'antd';
+import { ExportOutlined } from '@ant-design/icons';
 import { ResponsiveLine } from '@nivo/line';
 import OnionAddressWarning from './OnionAddressWarning';
 import { Filter } from 'nostr-tools/lib/types/filter';
@@ -967,39 +968,6 @@ const NostrEventsTable: React.FC = () => {
       sortOrder: sortedInfo.columnKey === 'bond' ? sortedInfo.order : null,
     },
     {
-      title: 'Link',
-      dataIndex: 'link',
-      key: 'link',
-      render: (text: string) => {
-        if (text && text !== '-') {
-          const isOnionAddress = text.toLowerCase().includes('.onion');
-
-          if (isOnionAddress) {
-            return (
-              <a
-                href="#"
-                onClick={e => {
-                  e.preventDefault();
-                  setCurrentOnionAddress(text);
-                  setOnionModalVisible(true);
-                }}
-              >
-                {text.length > 30 ? `${text.substring(0, 30)}...` : text}
-              </a>
-            );
-          } else {
-            return (
-              <a href={text} target="_blank" rel="noopener noreferrer">
-                {text.length > 30 ? `${text.substring(0, 30)}...` : text}
-              </a>
-            );
-          }
-        } else {
-          return '-';
-        }
-      },
-    },
-    {
       title: 'Payment Methods',
       dataIndex: 'paymentMethods',
       key: 'paymentMethods',
@@ -1020,6 +988,41 @@ const NostrEventsTable: React.FC = () => {
         if (hasEmoji) return '-';
 
         return <div>{methods}</div>;
+      },
+    },
+
+    {
+      title: 'Link',
+      dataIndex: 'link',
+      key: 'link',
+      render: (text: string) => {
+        if (text && text !== '-') {
+          const isOnionAddress = text.toLowerCase().includes('.onion');
+
+          if (isOnionAddress) {
+            return (
+              <a
+                href="#"
+                onClick={e => {
+                  e.preventDefault();
+                  setCurrentOnionAddress(text);
+                  setOnionModalVisible(true);
+                }}
+                title={text}
+              >
+                <ExportOutlined style={{ fontSize: '16px', color: '#8c8c8c' }} />
+              </a>
+            );
+          } else {
+            return (
+              <a href={text} target="_blank" rel="noopener noreferrer" title={text}>
+                <ExportOutlined style={{ fontSize: '16px', color: '#8c8c8c' }} />
+              </a>
+            );
+          }
+        } else {
+          return '-';
+        }
       },
     },
   ];
@@ -1249,7 +1252,10 @@ const NostrEventsTable: React.FC = () => {
 
           {/* Filter UI */}
           <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-            <div className="filter-container" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div
+              className="filter-container"
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
+            >
               <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
                 Filter Options:
               </Title>

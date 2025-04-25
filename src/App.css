@@ -1,11 +1,80 @@
+@keyframes borderPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 255, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 0, 0);
+  }
+}
+
+@keyframes textScan {
+  0%, 100% {
+    color: #0f0;
+  }
+  50% {
+    color: #0ff;
+  }
+}
+
+@keyframes gradientBg {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Digital noise effect */
+.digital-noise {
+  position: relative;
+}
+
+.digital-noise::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.02;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  z-index: 1000;
+}
+
 .App {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px 10px; /* Reduced side padding for mobile */
-  background-color: #000000; /* Black background for the app container */
+  background-color: #090909; /* Dark background for the app container */
   min-height: 100vh;
-  color: rgba(255, 255, 255, 0.85); /* Light text for dark background */
+  color: #3cf73c; /* Brighter green for better readability */
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #3cf73c;
+  box-shadow: 0 0 20px rgba(60, 247, 60, 0.2);
+  font-family: 'Roboto Mono', 'Share Tech Mono', monospace;
+  text-shadow: 0 0 1px rgba(60, 247, 60, 0.2); /* Subtle text shadow for better contrast */
+}
+
+.App::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #0f0, transparent);
+  animation: gradientBg 3s ease infinite;
+  background-size: 200% 200%;
 }
 
 /* Add responsive padding adjustments */
@@ -16,12 +85,14 @@
 }
 
 body {
-  background-color: #000000; /* Dark background for the page */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: rgba(255, 255, 255, 0.85); /* Light text for dark background */
+  background-color: #090909; /* Dark background for the page */
+  font-family: 'Roboto Mono', 'Share Tech Mono', monospace;
+  color: #3cf73c; /* Brighter cypherpunk green text for better readability */
   overflow-x: hidden; /* Prevent horizontal scrolling */
   width: 100%;
   max-width: 100vw;
+  font-weight: 400;
+  text-shadow: 0 0 1px rgba(60, 247, 60, 0.2); /* Subtle text shadow for better contrast */
 }
 
 html {
@@ -39,38 +110,80 @@ html {
   text-align: center;
 }
 
+.ant-pagination-item {
+  background-color: #000 !important;
+  border-color: #0f0 !important;
+}
+
+.ant-pagination-item-active {
+  border-color: #0ff !important;
+  background-color: rgba(0, 255, 255, 0.1) !important;
+}
+
+.ant-pagination-item a {
+  color: #0f0 !important;
+}
+
+.ant-pagination-item-active a {
+  color: #0ff !important;
+}
+
+.ant-pagination-prev .ant-pagination-item-link,
+.ant-pagination-next .ant-pagination-item-link {
+  background-color: #000 !important;
+  border-color: #0f0 !important;
+  color: #0f0 !important;
+}
+
 /* Make tables scroll horizontally on small screens */
 .ant-table-wrapper {
   overflow-x: auto;
-  background-color: #000000; /* Match the background color */
+  background-color: #090909; /* Match the background color */
+  border: 1px solid #0f0;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.1);
 }
 
 /* Fix background color when scrolling horizontally */
 .ant-table {
-  background-color: #000000;
+  background-color: #090909;
+  font-family: 'Share Tech Mono', monospace;
 }
 
 .ant-table-container {
-  background-color: #000000;
+  background-color: #090909;
 }
 
 .ant-table-content {
-  background-color: #000000;
+  background-color: #090909;
 }
 
 /* Table rows and cells background */
 .ant-table-tbody > tr > td {
-  background-color: #000000;
-  border-bottom: 1px solid #303030;
+  background-color: #0c0c0c;
+  border-bottom: 1px solid #3cf73c;
+  color: #3cf73c;
+  font-family: 'Roboto Mono', 'Share Tech Mono', monospace;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 400;
+  text-shadow: 0 0 1px rgba(60, 247, 60, 0.2);
 }
 
 .ant-table-thead > tr > th {
-  background-color: #000000;
-  border-bottom: 1px solid #303030;
+  background-color: #0c0c0c !important;
+  border-bottom: 1px solid #3cf73c !important;
+  color: #41f4f4 !important;
+  font-family: 'Roboto Mono', 'VT323', monospace;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  padding: 14px 16px;
+  font-weight: 500;
+  text-shadow: 0 0 2px rgba(65, 244, 244, 0.3);
 }
 
 .ant-table-tbody > tr.ant-table-row:hover > td {
-  background-color: #141414;
+  background-color: #101010 !important;
+  animation: textScan 2s ease infinite;
 }
 
 /* Improve spacing on filter cards for mobile */
@@ -101,10 +214,219 @@ html {
 
 /* Ensure modal content is visible on dark theme */
 .ant-modal-content {
-  background-color: #000000;
+  background-color: #090909 !important;
+  border: 1px solid #0f0 !important;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3) !important;
+}
+
+.ant-modal-header {
+  background-color: #0c0c0c !important;
+  border-bottom: 1px solid #0f0 !important;
+}
+
+.ant-modal-title {
+  color: #0ff !important;
+  font-family: 'VT323', monospace !important;
+}
+
+.ant-modal-close {
+  color: #0f0 !important;
+}
+
+.ant-modal-close:hover {
+  color: #0ff !important;
 }
 
 /* Override code background for better contrast in dark theme */
 .ant-typography code {
-  background-color: #000000;
+  background-color: #090909;
+  border: 1px solid #0f0;
+  color: #0f0;
+}
+
+/* Style cards with cypherpunk aesthetic */
+.ant-card {
+  background-color: #0c0c0c !important;
+  border: 1px solid #0f0 !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2) !important;
+}
+
+.ant-card-head {
+  background-color: #0e0e0e !important;
+  border-bottom: 1px solid #0f0 !important;
+  color: #0ff !important;
+}
+
+/* Button styling */
+button, 
+.ant-btn {
+  background-color: #090909 !important;
+  border: 1px solid #0f0 !important;
+  color: #0f0 !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-radius: 0 !important;
+  position: relative;
+  overflow: hidden;
+}
+
+button:hover, 
+.ant-btn:hover,
+.ant-btn-primary:hover {
+  background-color: #0c0c0c !important;
+  border-color: #0ff !important;
+  color: #0ff !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3) !important;
+}
+
+.ant-btn-primary {
+  background-color: rgba(0, 255, 0, 0.1) !important;
+  border-color: #0f0 !important;
+  color: #0f0 !important;
+}
+
+/* Select and input styling */
+.ant-select, 
+.ant-input {
+  background-color: #090909 !important;
+  border: 1px solid #0f0 !important;
+  color: #0f0 !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  border-radius: 0 !important;
+}
+
+.ant-select:hover, 
+.ant-input:hover {
+  border-color: #0ff !important;
+}
+
+.ant-select-focused .ant-select-selector,
+.ant-input:focus {
+  border-color: #0ff !important;
+  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+.ant-select-item {
+  background-color: #090909 !important;
+  color: #0f0 !important;
+  font-family: 'Share Tech Mono', monospace !important;
+}
+
+.ant-select-item-option-active {
+  background-color: rgba(0, 255, 0, 0.1) !important;
+}
+
+.ant-select-item-option-selected {
+  background-color: rgba(0, 255, 0, 0.2) !important;
+  color: #0ff !important;
+}
+
+.ant-select-dropdown {
+  background-color: #0c0c0c !important;
+  border: 1px solid #0f0 !important;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2) !important;
+}
+
+/* Tags */
+.ant-tag {
+  font-family: 'Share Tech Mono', monospace !important;
+  border-radius: 0 !important;
+  letter-spacing: 0.5px;
+}
+
+.ant-tag-blue {
+  color: #0ff !important;
+  background-color: rgba(0, 255, 255, 0.1) !important;
+  border-color: #0ff !important;
+}
+
+.ant-tag-success {
+  color: #0f0 !important;
+  background-color: rgba(0, 255, 0, 0.1) !important;
+  border-color: #0f0 !important;
+}
+
+.ant-tag-error {
+  color: #f0f !important;
+  background-color: rgba(255, 0, 255, 0.1) !important;
+  border-color: #f0f !important;
+}
+
+.ant-tag-default {
+  color: #aaa !important;
+  background-color: rgba(50, 50, 50, 0.3) !important;
+  border-color: #aaa !important;
+}
+
+/* Apply style to depth chart container */
+.depth-chart-container {
+  border: 1px solid #0f0;
+  background-color: #0c0c0c;
+  position: relative;
+}
+
+.filter-container {
+  position: relative;
+}
+
+/* Typography */
+.ant-typography {
+  color: #3cf73c !important;
+  font-family: 'Roboto Mono', 'Share Tech Mono', monospace !important;
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+  text-shadow: 0 0 1px rgba(60, 247, 60, 0.2) !important;
+}
+
+.ant-typography h1, 
+.ant-typography h2, 
+.ant-typography h3, 
+.ant-typography h4 {
+  color: #41f4f4 !important;
+  font-family: 'Roboto Mono', 'VT323', monospace !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  text-shadow: 0 0 2px rgba(65, 244, 244, 0.3);
+}
+
+/* Special glowing effect for titles */
+h4.ant-typography {
+  text-shadow: 0 0 5px rgba(65, 244, 244, 0.3);
+  letter-spacing: 0.5px;
+  font-size: 18px !important;
+}
+
+/* Alerts */
+.ant-alert {
+  background-color: rgba(0, 255, 0, 0.1) !important;
+  border: 1px solid #0f0 !important;
+  border-radius: 0 !important;
+  color: #0f0 !important;
+  font-family: 'Share Tech Mono', monospace !important;
+}
+
+.ant-alert-error {
+  background-color: rgba(255, 0, 255, 0.1) !important;
+  border-color: #f0f !important;
+  color: #f0f !important;
+}
+
+/* Add a retro glitch effect to the app footer */
+small {
+  display: inline-block;
+  position: relative;
+  color: #0f0 !important;
+  animation: textScan 4s ease infinite;
+}
+
+small a {
+  color: #0ff !important;
+  position: relative;
+  text-decoration: none;
+}
+
+small a:hover {
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.7);
 }

@@ -1,31 +1,143 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Roboto+Mono:wght@400;500&display=swap');
+
+/* Create scanline effect */
+@keyframes scanlines {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 100%;
+  }
+}
+
+/* Subtle text glitch effect - toned down for better readability */
+@keyframes textglitch {
+  0% {
+    text-shadow: 0.03em 0 0 rgba(0, 255, 0, 0.5), 
+                -0.015em -0.03em 0 rgba(255, 0, 255, 0.5),
+                0.015em 0.03em 0 rgba(0, 255, 255, 0.5);
+  }
+  49% {
+    text-shadow: 0.03em 0 0 rgba(0, 255, 0, 0.5), 
+                -0.015em -0.03em 0 rgba(255, 0, 255, 0.5),
+                0.015em 0.03em 0 rgba(0, 255, 255, 0.5);
+  }
+  50% {
+    text-shadow: -0.03em -0.015em 0 rgba(0, 255, 0, 0.5),
+                0.015em 0.015em 0 rgba(255, 0, 255, 0.5),
+                -0.03em -0.03em 0 rgba(0, 255, 255, 0.5);
+  }
+  99% {
+    text-shadow: -0.03em -0.015em 0 rgba(0, 255, 0, 0.5),
+                0.015em 0.015em 0 rgba(255, 0, 255, 0.5),
+                -0.03em -0.03em 0 rgba(0, 255, 255, 0.5);
+  }
+  100% {
+    text-shadow: 0.03em 0 0 rgba(0, 255, 0, 0.5), 
+                -0.015em -0.03em 0 rgba(255, 0, 255, 0.5),
+                0.015em 0.03em 0 rgba(0, 255, 255, 0.5);
+  }
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Roboto Mono', 'Share Tech Mono', 'Courier New', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #000000;
-  color: rgba(255, 255, 255, 0.85);
+  background-color: #0a0a0a;
+  color: #3cf73c; /* Brighter green for better readability */
+  position: relative;
+  letter-spacing: 0.3px; /* Slightly reduced letter spacing */
+  font-size: 16px; /* Ensure base font size is readable */
+  line-height: 1.5; /* Improved line height for readability */
+  font-weight: 400; /* Medium weight for better readability */
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+  background-size: 100% 2px, 3px 100%;
+  z-index: 1000;
+  opacity: 0.5; /* Reduced opacity for better readability */
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: 'Roboto Mono', monospace;
   background-color: #000000;
-  color: #f56c6c;
+  color: #3cf73c;
+  border: 1px solid #3cf73c;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-weight: 500;
 }
 
 /* Add smooth transitions for theme changes */
 * {
-  transition: background-color 0.3s, color 0.3s;
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 
 /* Ensure all links are visible on dark background */
 a {
-  color: #1890ff;
+  color: #3cf73c;
+  text-decoration: none;
+  position: relative;
+  display: inline-block;
+  font-weight: 500;
 }
 
 a:hover {
-  color: #40a9ff;
+  color: #0ff;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.7);
+}
+
+a::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  bottom: 0;
+  left: 0;
+  background-color: currentColor;
+  transform: scaleX(0);
+  transform-origin: bottom right;
+  transition: transform 0.3s ease-out;
+}
+
+a:hover::after {
+  transform: scaleX(1);
+  transform-origin: bottom left;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'VT323', monospace;
+  letter-spacing: 0.5px;
+  color: #41f4f4;
+  font-weight: 500;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3cf73c;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0ff;
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.7);
 }
