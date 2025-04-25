@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Pagination, Typography, Spin, Alert, Tag, Select, Space, Card } from 'antd';
+import { Table, Pagination, Typography, Spin, Alert, Tag, Select, Space, Card, Input } from 'antd';
 import { ResponsiveLine } from '@nivo/line';
 import OnionAddressWarning from './OnionAddressWarning';
 import { Filter } from 'nostr-tools/lib/types/filter';
@@ -31,6 +31,7 @@ interface EventTableData {
   bond: string | null;
   price: string | null;
   rawAmount: number | null;
+  paymentMethods: string | null;
 }
 
 // Function to get flag emoji from currency code using iso-country-currency library
@@ -107,6 +108,7 @@ const NostrEventsTable: React.FC = () => {
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('');
   const pageSize = 20;
 
   // Function to format amount values
@@ -280,9 +282,9 @@ const NostrEventsTable: React.FC = () => {
     });
 
     // Create arrays from maps for buy and sell data
-    const buyArray: { premium: number; amount: number }[] = Array.from(
-      buyPremiumMap.entries()
-    ).map(([premium, amount]) => ({ premium, amount }));
+    const buyArray: { premium: number; amount: number }[] = Array.from(buyPremiumMap.entries()).map(
+      ([premium, amount]) => ({ premium, amount })
+    );
 
     const sellArray: { premium: number; amount: number }[] = Array.from(
       sellPremiumMap.entries()
@@ -496,6 +498,7 @@ const NostrEventsTable: React.FC = () => {
       const sTag = event.tags.find(tag => tag[0] === 's');
       const premiumTag = event.tags.find(tag => tag[0] === 'premium');
       const bondTag = event.tags.find(tag => tag[0] === 'bond');
+      const paymentMethodsTag = event.tags.find(tag => tag[0] === 'pm');
 
       // Skip events with 's' tag equal to 'pending'
       if (sTag && sTag[1] === 'pending') {
@@ -573,6 +576,7 @@ const NostrEventsTable: React.FC = () => {
         bond: bondTag ? bondTag[1] : null,
         price: null,
         rawAmount: rawAmount,
+        paymentMethods: paymentMethodsTag ? paymentMethodsTag[1] : '-',
       };
 
       try {
@@ -738,6 +742,15 @@ const NostrEventsTable: React.FC = () => {
       result = result.filter(event => event.currencyCode === currencyFilter);
     }
 
+    // Apply payment method filter
+    if (paymentMethodFilter.trim() !== '') {
+      result = result.filter(
+        event =>
+          event.paymentMethods &&
+          event.paymentMethods.toLowerCase().includes(paymentMethodFilter.toLowerCase())
+      );
+    }
+
     setFilteredEvents(result);
     setTotalEvents(result.length);
     setCurrentPage(1); // Reset to first page when filters change
@@ -745,7 +758,7 @@ const NostrEventsTable: React.FC = () => {
     // Update depth chart data based on filtered events
     const chartData = prepareDepthChartData(result);
     setDepthChartData(chartData);
-  }, [events, sourceFilter, typeFilter, currencyFilter]);
+  }, [events, sourceFilter, typeFilter, currencyFilter, paymentMethodFilter]);
 
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -830,10 +843,15 @@ const NostrEventsTable: React.FC = () => {
     setCurrencyFilter(value);
   };
 
+  const handlePaymentMethodFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPaymentMethodFilter(e.target.value);
+  };
+
   const clearFilters = () => {
     setSourceFilter(null);
     setTypeFilter(null);
     setCurrencyFilter(null);
+    setPaymentMethodFilter('');
   };
 
   // Calculate current page data from filtered events
@@ -981,6 +999,29 @@ const NostrEventsTable: React.FC = () => {
         }
       },
     },
+    {
+      title: 'Payment Methods',
+      dataIndex: 'paymentMethods',
+      key: 'paymentMethods',
+      render: (methods: string | null) => {
+        if (!methods) return '-';
+
+        // Check for characters that are likely emojis using a simple for loop
+        // Most emojis have character codes > 127 (outside standard ASCII)
+        let hasEmoji = false;
+        for (let i = 0; i < methods.length; i++) {
+          if (methods.charCodeAt(i) > 127) {
+            hasEmoji = true;
+            break;
+          }
+        }
+
+        // If it contains emoji, display just a dash
+        if (hasEmoji) return '-';
+
+        return <div>{methods}</div>;
+      },
+    },
   ];
 
   // Handle .onion address actions
@@ -1035,7 +1076,9 @@ const NostrEventsTable: React.FC = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <Title level={2} style={{ textAlign: 'center' }}>Nostr Events (Kind 38383)</Title>
+      <Title level={2} style={{ textAlign: 'center' }}>
+        Nostr Events (Kind 38383)
+      </Title>
 
       {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
 
@@ -1065,24 +1108,37 @@ const NostrEventsTable: React.FC = () => {
                     axis: {
                       ticks: {
                         text: {
-                          fill: '#ffffff'
-                        }
+                          fill: '#ffffff',
+                        },
                       },
                       legend: {
                         text: {
-                          fill: '#ffffff'
-                        }
-                      }
-                    }
+                          fill: '#ffffff',
+                        },
+                      },
+                      domain: {
+                        line: {
+                          stroke: '#555',
+                          strokeWidth: 1,
+                        },
+                      },
+                    },
+                    grid: {
+                      line: {
+                        stroke: 'transparent',
+                      },
+                    },
                   }}
                   xScale={{
                     type: 'linear',
-                    min: Math.min(
-                      ...depthChartData.flatMap(series => series.data.map(point => point.x))
-                    ) - 1,
-                    max: Math.max(
-                      ...depthChartData.flatMap(series => series.data.map(point => point.x))
-                    ) + 1
+                    min:
+                      Math.min(
+                        ...depthChartData.flatMap(series => series.data.map(point => point.x))
+                      ) - 1,
+                    max:
+                      Math.max(
+                        ...depthChartData.flatMap(series => series.data.map(point => point.x))
+                      ) + 1,
                   }}
                   yScale={{ type: 'linear', min: 0, max: 'auto' }}
                   axisTop={null}
@@ -1096,9 +1152,7 @@ const NostrEventsTable: React.FC = () => {
                     legendPosition: 'middle',
                     tickValues: 5, // Limit the number of ticks
                     format: value =>
-                      typeof value === 'number'
-                        ? `${value.toFixed(0)}%`
-                        : `${value}%`
+                      typeof value === 'number' ? `${value.toFixed(0)}%` : `${value}%`,
                   }}
                   axisLeft={{
                     tickSize: 5,
@@ -1121,10 +1175,8 @@ const NostrEventsTable: React.FC = () => {
                         return `₿0`;
                       }
                     },
-                    tickValues: 5 // Limit the number of ticks
+                    tickValues: 5, // Limit the number of ticks
                   }}
-                  gridXValues={[]} // No vertical grid lines
-                  gridYValues={[]} // No horizontal grid lines
                   enableGridX={false}
                   enableGridY={false}
                   curve="monotoneX"
@@ -1141,31 +1193,58 @@ const NostrEventsTable: React.FC = () => {
                     return (
                       <div
                         style={{
-                          background: 'white',
+                          background: '#1f1f1f',
                           padding: '9px 12px',
-                          border: '1px solid #ccc',
+                          border: '1px solid #333',
                           borderRadius: '3px',
+                          color: 'rgba(255, 255, 255, 0.85)',
+                          boxShadow: '0 3px 6px rgba(0, 0, 0, 0.2)',
                         }}
                       >
-                        <div>Premium: {typeof slice.points[0].data.x === 'number' ? slice.points[0].data.x.toFixed(2) : String(slice.points[0].data.x)}%</div>
+                        <div style={{ fontWeight: 'bold', marginBottom: '6px', color: '#1890ff' }}>
+                          Premium:{' '}
+                          {typeof slice.points[0].data.x === 'number'
+                            ? slice.points[0].data.x.toFixed(2)
+                            : String(slice.points[0].data.x)}
+                          %
+                        </div>
                         {slice.points.map(point => (
                           <div
                             key={point.id}
                             style={{
                               color: point.serieColor,
                               padding: '3px 0',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              borderBottom:
+                                point.id === slice.points[slice.points.length - 1].id
+                                  ? 'none'
+                                  : '1px solid rgba(255, 255, 255, 0.1)',
+                              paddingBottom: '4px',
+                              marginBottom: '4px',
                             }}
                           >
-                            <strong>{point.serieId}:</strong> {typeof point.data.y === 'number' ? point.data.y.toFixed(8) : String(point.data.y)} BTC
+                            <strong>{point.serieId}:</strong>{' '}
+                            {typeof point.data.y === 'number'
+                              ? point.data.y.toFixed(8)
+                              : String(point.data.y)}{' '}
+                            BTC
                           </div>
                         ))}
                       </div>
-                    )
+                    );
                   }}
                   legends={[]}
                 />
               ) : (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                  }}
+                >
                   <p>Not enough data to display depth chart. Try adjusting filters.</p>
                 </div>
               )}
@@ -1175,7 +1254,9 @@ const NostrEventsTable: React.FC = () => {
           {/* Filter UI */}
           <Card style={{ marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-              <Title level={4} style={{ margin: '0', minWidth: '120px' }}>Filter Options:</Title>
+              <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
+                Filter Options:
+              </Title>
               <Space wrap style={{ flex: 1 }}>
                 <Select
                   style={{ width: 180 }}
@@ -1211,20 +1292,27 @@ const NostrEventsTable: React.FC = () => {
                     };
                   })}
                 />
-                {(sourceFilter || typeFilter || currencyFilter) && (
-                  <button
-                    onClick={clearFilters}
-                    style={{
-                      background: '#f5f5f5',
-                      border: '1px solid #d9d9d9',
-                      padding: '5px 12px',
-                      borderRadius: '2px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Clear All Filters
-                  </button>
-                )}
+                <Input
+                  style={{ width: 200 }}
+                  placeholder="Filter by Payment Method"
+                  value={paymentMethodFilter}
+                  onChange={handlePaymentMethodFilterChange}
+                  allowClear
+                />
+                <button
+                  onClick={clearFilters}
+                  style={{
+                    background: '#222',
+                    border: '1px solid #444',
+                    color: '#fff',
+                    padding: '5px 12px',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                  }}
+                  disabled={!sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter}
+                >
+                  Clear All Filters
+                </button>
               </Space>
             </div>
           </Card>
@@ -1251,7 +1339,14 @@ const NostrEventsTable: React.FC = () => {
         </>
       )}
 
-      <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          marginTop: '10px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div>
           {!ratesLoading && Object.keys(rateSources).length > 0 && (
             <small style={{ color: '#666' }}>
@@ -1263,9 +1358,10 @@ const NostrEventsTable: React.FC = () => {
           <small style={{ color: '#666' }}>
             {'Vibe coded with 🐨 by'}
             <a
-              href='http://github.koalasat.xyz'
-              target='_blank'
+              href="https://njump.me/npub1v3tgrwwsv7c6xckyhm5dmluc05jxd4yeqhpxew87chn0kua0tjzqc6yvjh"
+              target="_blank"
               style={{ marginLeft: 4 }}
+              rel="noreferrer"
             >
               KoalaSat
             </a>
