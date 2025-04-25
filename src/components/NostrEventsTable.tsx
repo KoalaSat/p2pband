@@ -1075,11 +1075,7 @@ const NostrEventsTable: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <Title level={2} style={{ textAlign: 'center' }}>
-        Nostr Events (Kind 38383)
-      </Title>
-
+    <div style={{ padding: '20px 10px', width: '100%', boxSizing: 'border-box' }}>
       {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
 
       <OnionAddressWarning
@@ -1098,8 +1094,8 @@ const NostrEventsTable: React.FC = () => {
       ) : (
         <>
           {/* Depth Chart */}
-          <Card style={{ marginBottom: '20px' }}>
-            <div style={{ height: '400px' }}>
+          <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
+            <div className="depth-chart-container" style={{ height: '400px' }}>
               {depthChartData.length > 0 && depthChartData[0].data.length > 0 ? (
                 <ResponsiveLine
                   data={depthChartData}
@@ -1252,8 +1248,8 @@ const NostrEventsTable: React.FC = () => {
           </Card>
 
           {/* Filter UI */}
-          <Card style={{ marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
+            <div className="filter-container" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
               <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
                 Filter Options:
               </Title>
@@ -1323,7 +1319,7 @@ const NostrEventsTable: React.FC = () => {
             rowKey="id"
             pagination={false}
             bordered
-            style={{ marginBottom: '20px' }}
+            style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}
             onChange={handleTableChange}
             sortDirections={['ascend', 'descend']}
           />

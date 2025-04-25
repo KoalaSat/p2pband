@@ -2,22 +2,101 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 20px 10px; /* Reduced side padding for mobile */
   background-color: #000000; /* Black background for the app container */
   min-height: 100vh;
   color: rgba(255, 255, 255, 0.85); /* Light text for dark background */
+}
+
+/* Add responsive padding adjustments */
+@media (min-width: 768px) {
+  .App {
+    padding: 20px; /* Restore full padding on larger screens */
+  }
 }
 
 body {
   background-color: #000000; /* Dark background for the page */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color: rgba(255, 255, 255, 0.85); /* Light text for dark background */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  width: 100%;
+  max-width: 100vw;
+}
+
+html {
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+*, *:before, *:after {
+  box-sizing: inherit;
 }
 
 /* Ant Design table customizations */
 .ant-pagination {
   margin-top: 20px;
   text-align: center;
+}
+
+/* Make tables scroll horizontally on small screens */
+.ant-table-wrapper {
+  overflow-x: auto;
+  background-color: #000000; /* Match the background color */
+}
+
+/* Fix background color when scrolling horizontally */
+.ant-table {
+  background-color: #000000;
+}
+
+.ant-table-container {
+  background-color: #000000;
+}
+
+.ant-table-content {
+  background-color: #000000;
+}
+
+/* Table rows and cells background */
+.ant-table-tbody > tr > td {
+  background-color: #000000;
+  border-bottom: 1px solid #303030;
+}
+
+.ant-table-thead > tr > th {
+  background-color: #000000;
+  border-bottom: 1px solid #303030;
+}
+
+.ant-table-tbody > tr.ant-table-row:hover > td {
+  background-color: #141414;
+}
+
+/* Improve spacing on filter cards for mobile */
+@media (max-width: 576px) {
+  .filter-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-container .ant-space {
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  
+  .filter-container .ant-select,
+  .filter-container .ant-input {
+    width: 100% !important;
+    margin-bottom: 8px;
+  }
+}
+
+/* Adjust depth chart height for mobile */
+@media (max-width: 576px) {
+  .depth-chart-container {
+    height: 250px !important;
+  }
 }
 
 /* Ensure modal content is visible on dark theme */
