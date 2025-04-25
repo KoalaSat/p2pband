@@ -30,23 +30,23 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
   try {
     // Handle special cases for common currencies to ensure correct flags
     const specialCaseCurrencies: Record<string, string> = {
-      'USD': '🇺🇸', // United States Dollar
-      'EUR': '🇪🇺', // Euro
-      'GBP': '🇬🇧', // British Pound Sterling
-      'JPY': '🇯🇵', // Japanese Yen
-      'CAD': '🇨🇦', // Canadian Dollar
-      'AUD': '🇦🇺', // Australian Dollar
-      'CHF': '🇨🇭', // Swiss Franc
-      'CNY': '🇨🇳', // Chinese Yuan
-      'HKD': '🇭🇰', // Hong Kong Dollar
-      'SGD': '🇸🇬', // Singapore Dollar
-      'INR': '🇮🇳', // Indian Rupee
-      'RUB': '🇷🇺', // Russian Ruble
-      'BRL': '🇧🇷', // Brazilian Real
-      'ZAR': '🇿🇦', // South African Rand
-      'VES': '🇻🇪', // Venezuelan Bolívar Soberano
-      'USDVE': '🇻🇪', // USD in Venezuela (custom code)
-      'BTC': '₿' // Bitcoin with its symbol instead of a flag
+      USD: '🇺🇸', // United States Dollar
+      EUR: '🇪🇺', // Euro
+      GBP: '🇬🇧', // British Pound Sterling
+      JPY: '🇯🇵', // Japanese Yen
+      CAD: '🇨🇦', // Canadian Dollar
+      AUD: '🇦🇺', // Australian Dollar
+      CHF: '🇨🇭', // Swiss Franc
+      CNY: '🇨🇳', // Chinese Yuan
+      HKD: '🇭🇰', // Hong Kong Dollar
+      SGD: '🇸🇬', // Singapore Dollar
+      INR: '🇮🇳', // Indian Rupee
+      RUB: '🇷🇺', // Russian Ruble
+      BRL: '🇧🇷', // Brazilian Real
+      ZAR: '🇿🇦', // South African Rand
+      VES: '🇻🇪', // Venezuelan Bolívar Soberano
+      USDVE: '🇻🇪', // USD in Venezuela (custom code)
+      BTC: '₿', // Bitcoin with its symbol instead of a flag
     };
 
     // Check if we have a hardcoded flag for this currency
@@ -93,16 +93,21 @@ const NostrEventsTable: React.FC = () => {
   const pageSize = 20;
 
   // Function to format amount values
-  const formatAmount = (value: string, currencyCode: string | null): string => {
+  const formatAmount = (value: string): string => {
     const num = parseFloat(value);
 
     if (isNaN(num)) return value;
 
-    return Math.floor(num).toString();
+    // Format with thousands separators
+    return Math.floor(num).toLocaleString();
   };
 
   // Function to calculate exchange rate pair for display in the Price column
-  const calculateBtcPrice = (amount: number | null, currencyCode: string | null, premium: string | null): string | null => {
+  const calculateBtcPrice = (
+    amount: number | null,
+    currencyCode: string | null,
+    premium: string | null
+  ): string | null => {
     try {
       console.log('calculateBtcPrice: Starting with', { amount, currencyCode, premium });
 
@@ -131,7 +136,10 @@ const NostrEventsTable: React.FC = () => {
 
         // If we have at least one source with a rate, use that
         if (Object.keys(sourcesWithRate).length > 0) {
-          console.log(`Found rates for ${upperCaseCurrency} in individual sources:`, sourcesWithRate);
+          console.log(
+            `Found rates for ${upperCaseCurrency} in individual sources:`,
+            sourcesWithRate
+          );
 
           // Calculate the average of available rates
           const rates = Object.values(sourcesWithRate);
@@ -150,7 +158,9 @@ const NostrEventsTable: React.FC = () => {
           }
 
           // Return in format: {rate with premium} {currency code}/BTC
-          const result = `${finalRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${upperCaseCurrency}/BTC`;
+          const result = `${finalRate.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          })} ${upperCaseCurrency}/BTC`;
           console.log(`Using calculated average: ${result}`);
           return result;
         }
@@ -176,7 +186,9 @@ const NostrEventsTable: React.FC = () => {
       }
 
       // Return in format: {rate with premium} {currency code}/BTC
-      const result = `${finalRate.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${upperCaseCurrency}/BTC`;
+      const result = `${finalRate.toLocaleString(undefined, {
+        maximumFractionDigits: 2,
+      })} ${upperCaseCurrency}/BTC`;
       console.log(`calculateBtcPrice: Calculated price: ${result}`);
       return result;
     } catch (error) {
@@ -196,24 +208,26 @@ const NostrEventsTable: React.FC = () => {
   };
 
   // Function to combine exchange rates from multiple sources and calculate the average
-  const calculateAverageRates = (sources: Record<string, Record<string, number>>): Record<string, number> => {
-    console.log("Calculating average rates from sources:", sources);
+  const calculateAverageRates = (
+    sources: Record<string, Record<string, number>>
+  ): Record<string, number> => {
+    console.log('Calculating average rates from sources:', sources);
     const averageRates: Record<string, number> = {};
     const allCurrencies = new Set<string>();
 
     // Collect all unique currency codes across all sources
-    Object.values(sources).forEach((sourceRates) => {
-      Object.keys(sourceRates).forEach((currency) => {
+    Object.values(sources).forEach(sourceRates => {
+      Object.keys(sourceRates).forEach(currency => {
         allCurrencies.add(currency);
       });
     });
 
     // For each currency, calculate the average rate across all sources
-    allCurrencies.forEach((currency) => {
+    allCurrencies.forEach(currency => {
       const rates: number[] = [];
 
       // Collect rates for this currency from all sources
-      Object.values(sources).forEach((sourceRates) => {
+      Object.values(sources).forEach(sourceRates => {
         if (sourceRates[currency] !== undefined) {
           rates.push(sourceRates[currency]);
         }
@@ -222,7 +236,9 @@ const NostrEventsTable: React.FC = () => {
       // Calculate average rate if we have any rates
       if (rates.length > 0) {
         averageRates[currency] = calculateAverage(rates);
-        console.log(`Average rate for ${currency}: ${averageRates[currency]} from values: ${rates.join(', ')}`);
+        console.log(
+          `Average rate for ${currency}: ${averageRates[currency]} from values: ${rates.join(', ')}`
+        );
       }
     });
 
@@ -232,14 +248,14 @@ const NostrEventsTable: React.FC = () => {
   // Manually force a refresh of all displayed prices
   const refreshAllPrices = () => {
     if (events.length > 0) {
-      console.log("Manually refreshing all prices...");
+      console.log('Manually refreshing all prices...');
 
       // Update prices for all events based on rates in rateSources
       const updatedEvents = events.map(event => {
         const newPrice = calculateBtcPrice(event.rawAmount, event.currencyCode, event.premium);
         return {
           ...event,
-          price: newPrice
+          price: newPrice,
         };
       });
 
@@ -250,7 +266,7 @@ const NostrEventsTable: React.FC = () => {
   // Function to fetch exchange rates from multiple sources
   const fetchExchangeRates = async (): Promise<void> => {
     setRatesLoading(true);
-    console.log("Fetching exchange rates from multiple sources...");
+    console.log('Fetching exchange rates from multiple sources...');
 
     // Create a new copy of the current rate sources
     const newRateSources: Record<string, Record<string, number>> = {};
@@ -260,7 +276,7 @@ const NostrEventsTable: React.FC = () => {
     try {
       const coinGeckoUrl = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,eur,gbp,jpy,cad,aud,chf,cny,krw,inr,brl,rub,mxn,zar`;
 
-      console.log("Fetching from CoinGecko:", coinGeckoUrl);
+      console.log('Fetching from CoinGecko:', coinGeckoUrl);
       const response = await fetch(coinGeckoUrl);
 
       if (!response.ok) {
@@ -268,7 +284,7 @@ const NostrEventsTable: React.FC = () => {
       }
 
       const data = await response.json();
-      console.log("CoinGecko response:", data);
+      console.log('CoinGecko response:', data);
 
       // Check if we have valid data
       if (data && data.bitcoin) {
@@ -278,12 +294,12 @@ const NostrEventsTable: React.FC = () => {
           rates[currency] = rate as number;
         });
 
-        console.log("Processed CoinGecko rates:", rates);
+        console.log('Processed CoinGecko rates:', rates);
 
         // Add to sources
         newRateSources['coingecko'] = rates;
       } else {
-        console.error("Invalid response from CoinGecko API:", data);
+        console.error('Invalid response from CoinGecko API:', data);
         hasErrors = true;
       }
     } catch (error) {
@@ -295,7 +311,7 @@ const NostrEventsTable: React.FC = () => {
     try {
       const yadioUrl = `https://api.yadio.io/exrates/BTC`;
 
-      console.log("Fetching from Yadio:", yadioUrl);
+      console.log('Fetching from Yadio:', yadioUrl);
       const response = await fetch(yadioUrl);
 
       if (!response.ok) {
@@ -303,22 +319,22 @@ const NostrEventsTable: React.FC = () => {
       }
 
       const data = await response.json();
-      console.log("Yadio response:", data);
+      console.log('Yadio response:', data);
 
       // Check if we have valid data
       if (data && data.BTC) {
         // Convert rates to uppercase keys for consistency
         const rates: Record<string, number> = {};
         Object.entries(data.BTC).forEach(([currency, rate]) => {
-            rates[currency] = rate as number;
+          rates[currency] = rate as number;
         });
 
-        console.log("Processed Yadio rates:", rates);
+        console.log('Processed Yadio rates:', rates);
 
         // Add to sources
         newRateSources['yadio'] = rates;
       } else {
-        console.error("Invalid response from Yadio API:", data);
+        console.error('Invalid response from Yadio API:', data);
         hasErrors = true;
       }
     } catch (error) {
@@ -331,9 +347,9 @@ const NostrEventsTable: React.FC = () => {
 
     // Calculate average rates from all sources
     if (Object.keys(newRateSources).length > 0) {
-      console.log(newRateSources)
+      console.log(newRateSources);
       const averageRates = calculateAverageRates(newRateSources);
-      console.log("Final average rates:", averageRates);
+      console.log('Final average rates:', averageRates);
       setExchangeRates(averageRates);
 
       // Only clear error if we have at least one successful source
@@ -341,12 +357,13 @@ const NostrEventsTable: React.FC = () => {
 
       // Immediately force a refresh of prices with the new rates
       setTimeout(() => {
-        console.log("Forcing immediate price refresh after rate update");
+        console.log('Forcing immediate price refresh after rate update');
         refreshAllPrices();
       }, 100);
-
     } else if (hasErrors) {
-      setError("Failed to fetch exchange rates from all sources. Price column may not display correctly.");
+      setError(
+        'Failed to fetch exchange rates from all sources. Price column may not display correctly.'
+      );
       setExchangeRates({});
     }
 
@@ -383,21 +400,21 @@ const NostrEventsTable: React.FC = () => {
 
         // Map common alternative codes to standard ones
         const currencyMap: Record<string, string> = {
-          'USDT': 'USD',
-          'USDC': 'USD',
-          'US$': 'USD',
-          'BUSD': 'USD',
-          'DOLLAR': 'USD',
-          'DOLLARS': 'USD',
+          USDT: 'USD',
+          USDC: 'USD',
+          US$: 'USD',
+          BUSD: 'USD',
+          DOLLAR: 'USD',
+          DOLLARS: 'USD',
           '€': 'EUR',
-          'EURO': 'EUR',
-          'EUROS': 'EUR',
+          EURO: 'EUR',
+          EUROS: 'EUR',
           '£': 'GBP',
-          'POUND': 'GBP',
-          'POUNDS': 'GBP',
-          'STERLING': 'GBP',
+          POUND: 'GBP',
+          POUNDS: 'GBP',
+          STERLING: 'GBP',
           '¥': 'JPY',
-          'YEN': 'JPY'
+          YEN: 'JPY',
         };
 
         if (currencyMap[currencyCode]) {
@@ -411,14 +428,13 @@ const NostrEventsTable: React.FC = () => {
 
       if (amountTag) {
         if (amountTag.length === 2) {
-          formattedAmount = formatAmount(amountTag[1], currencyCode);
+          formattedAmount = formatAmount(amountTag[1]);
           rawAmount = parseFloat(amountTag[1]);
           console.log(`Single amount: ${rawAmount} ${currencyCode}`);
         } else if (amountTag.length >= 3) {
-          formattedAmount = `${formatAmount(
-            amountTag[amountTag.length - 2],
-            currencyCode
-          )} - ${formatAmount(amountTag[amountTag.length - 1], currencyCode)}`;
+          formattedAmount = `${formatAmount(amountTag[amountTag.length - 2])} - ${formatAmount(
+            amountTag[amountTag.length - 1]
+          )}`;
           // For ranges, use the maximum amount
           rawAmount = parseFloat(amountTag[amountTag.length - 1]);
           console.log(`Range amount, using max: ${rawAmount} ${currencyCode}`);
@@ -448,7 +464,11 @@ const NostrEventsTable: React.FC = () => {
       try {
         // Calculate BTC price if we have both a currency code and an amount
         if (rawAmount !== null && currencyCode) {
-          eventData.price = calculateBtcPrice(rawAmount, currencyCode, premiumTag ? premiumTag[1] : null);
+          eventData.price = calculateBtcPrice(
+            rawAmount,
+            currencyCode,
+            premiumTag ? premiumTag[1] : null
+          );
         }
       } catch (priceError) {
         console.error('Error calculating price:', priceError);
@@ -487,7 +507,6 @@ const NostrEventsTable: React.FC = () => {
         // Define the filter for kind 38383 events
         const filter: Filter = {
           kinds: [38383],
-          limit: 100,
         };
 
         // Create an array to store all events
@@ -496,6 +515,21 @@ const NostrEventsTable: React.FC = () => {
         // Subscribe to events
         const subscription = pool.subscribeMany(relays, [filter], {
           onevent(event: Event) {
+            // Check if the event's pubkey is in the allowed list
+            const allowedPubkeys = [
+              '7af6f7cfc3bfdf8aa65df2465aa7841096fa8ee6b2d4d14fc43d974e5db9ab96',
+              'c8dc40a80bbb41fe7430fca9d0451b37a2341486ab65f890955528e4732da34a',
+              'f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c',
+              '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191',
+              'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e',
+              'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2',
+            ];
+
+            // Skip events whose pubkey is not in the allowed list
+            if (!allowedPubkeys.includes(event.pubkey)) {
+              return;
+            }
+
             const processedEvent = processEvent(event);
             if (processedEvent) {
               allEvents.push(processedEvent);
@@ -529,7 +563,7 @@ const NostrEventsTable: React.FC = () => {
 
     // Set up refresh interval for exchange rates
     const interval = setInterval(async () => {
-      console.log("Refreshing exchange rates...");
+      console.log('Refreshing exchange rates...');
       await fetchExchangeRates();
     }, 5 * 60 * 1000);
 
@@ -538,22 +572,23 @@ const NostrEventsTable: React.FC = () => {
 
   // Effect to update prices when exchange rates change
   useEffect(() => {
-    if ((!ratesLoading && Object.keys(exchangeRates).length > 0) ||
-      (!ratesLoading && Object.keys(rateSources).length > 0)) {
-
+    if (
+      (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
+      (!ratesLoading && Object.keys(rateSources).length > 0)
+    ) {
       if (events.length > 0) {
-        console.log("Updating prices for all events with new exchange rates...");
+        console.log('Updating prices for all events with new exchange rates...');
 
         // Update prices for all events based on new exchange rates
         const updatedEvents = events.map(event => {
           const newPrice = calculateBtcPrice(event.rawAmount, event.currencyCode, event.premium);
           return {
             ...event,
-            price: newPrice
+            price: newPrice,
           };
         });
 
-        console.log("Updated events with new prices:", updatedEvents);
+        console.log('Updated events with new prices:', updatedEvents);
         setEvents(updatedEvents);
       }
     }
@@ -587,7 +622,9 @@ const NostrEventsTable: React.FC = () => {
       } else if (sorter.columnKey === 'created_at') {
         // Default sorting by timestamp (newest first or oldest first)
         sortEvents.sort((a, b) => {
-          return sorter.order === 'ascend' ? a.created_at - b.created_at : b.created_at - a.created_at;
+          return sorter.order === 'ascend'
+            ? a.created_at - b.created_at
+            : b.created_at - a.created_at;
         });
       }
 
@@ -607,12 +644,36 @@ const NostrEventsTable: React.FC = () => {
       title: 'Source',
       dataIndex: 'source',
       key: 'source',
-      render: (text: string) => <Tag color="blue">{text}</Tag>,
+      render: (text: string) => {
+        // Try to load the image from public/assets with the naming convention {value}.small.png
+        const imagePath = `/assets/${text}.small.png`;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img
+              src={imagePath}
+              alt={text}
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                marginRight: '8px',
+                objectFit: 'cover',
+              }}
+              onError={e => {
+                // Fallback to text tag if image fails to load
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <Tag color="blue">{text}</Tag>
+          </div>
+        );
+      },
     },
     {
-      title: 'Is',
+      title: 'Type',
       dataIndex: 'is',
       key: 'is',
+      render: (text: string) => text.toUpperCase(),
     },
     {
       title: 'Amount',
@@ -631,7 +692,7 @@ const NostrEventsTable: React.FC = () => {
             {currencyCode} {flag}
           </span>
         );
-      }
+      },
     },
     {
       title: 'Price',
@@ -661,12 +722,12 @@ const NostrEventsTable: React.FC = () => {
         if (!value) return <Tag color="default">-</Tag>;
 
         const premiumValue = parseFloat(value);
-        let tagColor = "default"; // grey for 0
+        let tagColor = 'default'; // grey for 0
 
         if (premiumValue > 0) {
-          tagColor = "success"; // green for positive
+          tagColor = 'success'; // green for positive
         } else if (premiumValue < 0) {
-          tagColor = "error"; // red for negative
+          tagColor = 'error'; // red for negative
         }
 
         return <Tag color={tagColor}>{premiumValue.toFixed(2)} %</Tag>;
@@ -678,7 +739,9 @@ const NostrEventsTable: React.FC = () => {
       title: 'Bond',
       dataIndex: 'bond',
       key: 'bond',
-      render: (value: string | null) => (value ? `${parseFloat(value).toFixed(2)} %` : '-'),
+      render: (value: string | null) => (
+        <Tag color="default">{value ? `${parseFloat(value).toFixed(2)} %` : '-'}</Tag>
+      ),
       sorter: true,
       sortOrder: sortedInfo.columnKey === 'bond' ? sortedInfo.order : null,
     },
@@ -737,12 +800,12 @@ const NostrEventsTable: React.FC = () => {
   // Get a list of exchange rate sources for display with links
   const getRateSourcesList = () => {
     const sources = Object.keys(rateSources);
-    if (sources.length === 0) return "No sources available";
+    if (sources.length === 0) return 'No sources available';
 
     // Map of source names to their URLs
     const sourceUrls: Record<string, string> = {
-      'coingecko': 'https://www.coingecko.com',
-      'yadio': 'https://yadio.io'
+      coingecko: 'https://www.coingecko.com',
+      yadio: 'https://yadio.io',
     };
 
     return sources.map((source, index) => {
@@ -754,7 +817,7 @@ const NostrEventsTable: React.FC = () => {
 
       return (
         <React.Fragment key={source}>
-          {index > 0 && ", "}
+          {index > 0 && ', '}
           {url ? (
             <a href={url} target="_blank" rel="noopener noreferrer">
               {displayName}

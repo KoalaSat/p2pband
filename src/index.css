@@ -5,9 +5,27 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #000000;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+  background-color: #303030;
+  color: #f56c6c;
+}
+
+/* Add smooth transitions for theme changes */
+* {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Ensure all links are visible on dark background */
+a {
+  color: #1890ff;
+}
+
+a:hover {
+  color: #40a9ff;
 }
