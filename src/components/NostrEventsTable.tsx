@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Pagination, Typography, Spin, Alert, Tag } from 'antd';
+import { Table, Pagination, Typography, Spin, Alert, Tag, Select, Space, Card } from 'antd';
+import { ResponsiveLine } from '@nivo/line';
 import OnionAddressWarning from './OnionAddressWarning';
 import { Filter } from 'nostr-tools/lib/types/filter';
 import { Event } from 'nostr-tools/lib/types/core';
@@ -7,6 +8,15 @@ import { SimplePool } from 'nostr-tools';
 import * as isoCountryCurrency from 'iso-country-currency';
 
 const { Title } = Typography;
+
+// Define interface for depth chart data
+interface DepthChartData {
+  id: string;
+  data: Array<{
+    x: number;
+    y: number;
+  }>;
+}
 
 // Define the structure of the processed event data for the table
 interface EventTableData {
@@ -77,6 +87,7 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
 
 const NostrEventsTable: React.FC = () => {
   const [events, setEvents] = useState<EventTableData[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<EventTableData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -90,6 +101,12 @@ const NostrEventsTable: React.FC = () => {
     columnKey?: string | number;
     order?: 'ascend' | 'descend';
   }>({});
+  const [depthChartData, setDepthChartData] = useState<DepthChartData[]>([]);
+
+  // Filter states
+  const [sourceFilter, setSourceFilter] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
   const pageSize = 20;
 
   // Function to format amount values
@@ -205,6 +222,103 @@ const NostrEventsTable: React.FC = () => {
     // Sum all values and divide by the number of values
     const sum = values.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
     return sum / values.length;
+  };
+
+  // Function to prepare data for the depth chart
+  const prepareDepthChartData = (eventsData: EventTableData[]): DepthChartData[] => {
+    if (eventsData.length === 0) {
+      return [];
+    }
+
+    // Create maps to hold premium -> amount mappings before accumulating
+    const buyPremiumMap: Map<number, number> = new Map();
+    const sellPremiumMap: Map<number, number> = new Map();
+
+    // Process each event
+    eventsData.forEach(event => {
+      // Skip events without premium or raw amount
+      if (!event.premium || !event.rawAmount || !event.currencyCode) {
+        return;
+      }
+
+      // Parse premium as number
+      const premiumValue = parseFloat(event.premium);
+
+      // Convert amount to BTC using the exchange rate (reverse the rate)
+      let btcAmount = 0;
+      const currencyCode = event.currencyCode.toUpperCase();
+
+      if (exchangeRates[currencyCode] && exchangeRates[currencyCode] > 0) {
+        // Calculate the exchange rate with premium applied
+        const rateWithPremium = exchangeRates[currencyCode] * (1 + premiumValue / 100);
+
+        // Apply reverse exchange rate to get BTC amount
+        btcAmount = event.rawAmount / rateWithPremium;
+      }
+
+      // Skip events with zero BTC amount
+      if (btcAmount <= 0) {
+        return;
+      }
+
+      // Add to appropriate map based on event type (buy/sell)
+      if (event.is.toLowerCase() === 'buy') {
+        // If premium already exists, add to the amount
+        if (buyPremiumMap.has(premiumValue)) {
+          buyPremiumMap.set(premiumValue, buyPremiumMap.get(premiumValue)! + btcAmount);
+        } else {
+          buyPremiumMap.set(premiumValue, btcAmount);
+        }
+      } else if (event.is.toLowerCase() === 'sell') {
+        // If premium already exists, add to the amount
+        if (sellPremiumMap.has(premiumValue)) {
+          sellPremiumMap.set(premiumValue, sellPremiumMap.get(premiumValue)! + btcAmount);
+        } else {
+          sellPremiumMap.set(premiumValue, btcAmount);
+        }
+      }
+    });
+
+    // Create arrays from maps for buy and sell data
+    const buyArray: { premium: number; amount: number }[] = Array.from(
+      buyPremiumMap.entries()
+    ).map(([premium, amount]) => ({ premium, amount }));
+
+    const sellArray: { premium: number; amount: number }[] = Array.from(
+      sellPremiumMap.entries()
+    ).map(([premium, amount]) => ({ premium, amount }));
+
+    // Sort buy orders from highest to lowest premium
+    buyArray.sort((a, b) => b.premium - a.premium);
+
+    // Sort sell orders from lowest to highest premium
+    sellArray.sort((a, b) => a.premium - b.premium);
+
+    // Accumulate amounts
+    const buyData: { x: number; y: number }[] = [];
+    let buyAccumulated = 0;
+    buyArray.forEach(item => {
+      buyAccumulated += item.amount;
+      buyData.push({ x: item.premium, y: buyAccumulated });
+    });
+
+    const sellData: { x: number; y: number }[] = [];
+    let sellAccumulated = 0;
+    sellArray.forEach(item => {
+      sellAccumulated += item.amount;
+      sellData.push({ x: item.premium, y: sellAccumulated });
+    });
+
+    return [
+      {
+        id: 'Buy Orders',
+        data: buyData,
+      },
+      {
+        id: 'Sell Orders',
+        data: sellData,
+      },
+    ];
   };
 
   // Function to combine exchange rates from multiple sources and calculate the average
@@ -535,7 +649,9 @@ const NostrEventsTable: React.FC = () => {
               allEvents.push(processedEvent);
               // Sort by newest first
               allEvents.sort((a, b) => b.created_at - a.created_at);
-              setEvents([...allEvents]);
+              const sortedEvents = [...allEvents];
+              setEvents(sortedEvents);
+              setFilteredEvents(sortedEvents); // Initialize filtered events with all events
               setTotalEvents(allEvents.length);
             }
           },
@@ -590,9 +706,46 @@ const NostrEventsTable: React.FC = () => {
 
         console.log('Updated events with new prices:', updatedEvents);
         setEvents(updatedEvents);
+
+        // Update depth chart data
+        const chartData = prepareDepthChartData(updatedEvents);
+        setDepthChartData(chartData);
       }
     }
   }, [exchangeRates, ratesLoading, rateSources]);
+
+  // Effect to filter events when filter states or events change
+  useEffect(() => {
+    if (events.length === 0) {
+      setFilteredEvents([]);
+      return;
+    }
+
+    let result = [...events];
+
+    // Apply source filter
+    if (sourceFilter) {
+      result = result.filter(event => event.source === sourceFilter);
+    }
+
+    // Apply type filter
+    if (typeFilter) {
+      result = result.filter(event => event.is.toUpperCase() === typeFilter);
+    }
+
+    // Apply currency filter
+    if (currencyFilter) {
+      result = result.filter(event => event.currencyCode === currencyFilter);
+    }
+
+    setFilteredEvents(result);
+    setTotalEvents(result.length);
+    setCurrentPage(1); // Reset to first page when filters change
+
+    // Update depth chart data based on filtered events
+    const chartData = prepareDepthChartData(result);
+    setDepthChartData(chartData);
+  }, [events, sourceFilter, typeFilter, currencyFilter]);
 
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -604,39 +757,89 @@ const NostrEventsTable: React.FC = () => {
     setSortedInfo(sorter);
 
     if (sorter && sorter.columnKey) {
-      const sortEvents = [...events];
-
-      // Sort based on the column that was clicked
-      if (sorter.columnKey === 'premium') {
-        sortEvents.sort((a, b) => {
+      // Create sorting function based on the column that was clicked
+      const sortFunction = (a: EventTableData, b: EventTableData) => {
+        if (sorter.columnKey === 'premium') {
           const premiumA = a.premium ? parseFloat(a.premium) : 0;
           const premiumB = b.premium ? parseFloat(b.premium) : 0;
           return sorter.order === 'ascend' ? premiumA - premiumB : premiumB - premiumA;
-        });
-      } else if (sorter.columnKey === 'bond') {
-        sortEvents.sort((a, b) => {
+        } else if (sorter.columnKey === 'bond') {
           const bondA = a.bond ? parseFloat(a.bond) : 0;
           const bondB = b.bond ? parseFloat(b.bond) : 0;
           return sorter.order === 'ascend' ? bondA - bondB : bondB - bondA;
-        });
-      } else if (sorter.columnKey === 'created_at') {
-        // Default sorting by timestamp (newest first or oldest first)
-        sortEvents.sort((a, b) => {
+        } else if (sorter.columnKey === 'created_at') {
+          // Default sorting by timestamp (newest first or oldest first)
           return sorter.order === 'ascend'
             ? a.created_at - b.created_at
             : b.created_at - a.created_at;
-        });
-      }
+        }
+        return 0;
+      };
 
-      // Update events with the sorted array
-      setEvents(sortEvents);
+      // Sort both the original and filtered events
+      const sortedEvents = [...events].sort(sortFunction);
+      const sortedFilteredEvents = [...filteredEvents].sort(sortFunction);
+
+      // Update both state variables
+      setEvents(sortedEvents);
+      setFilteredEvents(sortedFilteredEvents);
     }
   };
 
-  // Calculate current page data
+  // Get unique values for filters
+  const getUniqueSources = () => {
+    const sources = new Set<string>();
+    events.forEach(event => {
+      if (event.source && event.source !== '-') {
+        sources.add(event.source);
+      }
+    });
+    return Array.from(sources).sort();
+  };
+
+  const getUniqueTypes = () => {
+    const types = new Set<string>();
+    events.forEach(event => {
+      if (event.is && event.is !== '-') {
+        types.add(event.is.toUpperCase());
+      }
+    });
+    return Array.from(types).sort();
+  };
+
+  const getUniqueCurrencies = () => {
+    const currencies = new Set<string>();
+    events.forEach(event => {
+      if (event.currencyCode) {
+        currencies.add(event.currencyCode);
+      }
+    });
+    return Array.from(currencies).sort();
+  };
+
+  // Handle filter changes
+  const handleSourceFilterChange = (value: string | null) => {
+    setSourceFilter(value);
+  };
+
+  const handleTypeFilterChange = (value: string | null) => {
+    setTypeFilter(value);
+  };
+
+  const handleCurrencyFilterChange = (value: string | null) => {
+    setCurrencyFilter(value);
+  };
+
+  const clearFilters = () => {
+    setSourceFilter(null);
+    setTypeFilter(null);
+    setCurrencyFilter(null);
+  };
+
+  // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const currentData = events.slice(startIndex, endIndex);
+  const currentData = filteredEvents.slice(startIndex, endIndex);
 
   // Define table columns
   const columns = [
@@ -832,15 +1035,7 @@ const NostrEventsTable: React.FC = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <Title level={2}>Nostr Events (Kind 38383)</Title>
-
-      {!ratesLoading && Object.keys(rateSources).length > 0 && (
-        <div style={{ marginBottom: '10px' }}>
-          <small style={{ color: '#666' }}>
-            Exchange rates: Average from {getRateSourcesList()}
-          </small>
-        </div>
-      )}
+      <Title level={2} style={{ textAlign: 'center' }}>Nostr Events (Kind 38383)</Title>
 
       {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
 
@@ -859,6 +1054,181 @@ const NostrEventsTable: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* Depth Chart */}
+          <Card style={{ marginBottom: '20px' }}>
+            <div style={{ height: '400px' }}>
+              {depthChartData.length > 0 && depthChartData[0].data.length > 0 ? (
+                <ResponsiveLine
+                  data={depthChartData}
+                  margin={{ top: 40, right: 40, bottom: 50, left: 60 }}
+                  theme={{
+                    axis: {
+                      ticks: {
+                        text: {
+                          fill: '#ffffff'
+                        }
+                      },
+                      legend: {
+                        text: {
+                          fill: '#ffffff'
+                        }
+                      }
+                    }
+                  }}
+                  xScale={{
+                    type: 'linear',
+                    min: Math.min(
+                      ...depthChartData.flatMap(series => series.data.map(point => point.x))
+                    ) - 1,
+                    max: Math.max(
+                      ...depthChartData.flatMap(series => series.data.map(point => point.x))
+                    ) + 1
+                  }}
+                  yScale={{ type: 'linear', min: 0, max: 'auto' }}
+                  axisTop={null}
+                  axisRight={null}
+                  axisBottom={{
+                    tickSize: 5,
+                    tickPadding: 5,
+                    tickRotation: 0,
+                    legend: 'Premium %',
+                    legendOffset: 36,
+                    legendPosition: 'middle',
+                    tickValues: 5, // Limit the number of ticks
+                    format: value =>
+                      typeof value === 'number'
+                        ? `${value.toFixed(0)}%`
+                        : `${value}%`
+                  }}
+                  axisLeft={{
+                    tickSize: 5,
+                    tickPadding: 5,
+                    tickRotation: 0,
+                    legend: '',
+                    legendOffset: -80,
+                    legendPosition: 'middle',
+                    format: value => {
+                      if (typeof value !== 'number') return `₿${value}`;
+
+                      // Use different precision based on the value
+                      if (value >= 1) {
+                        return `₿${value.toFixed(2)}`;
+                      } else if (value >= 0.01) {
+                        return `₿${value.toFixed(4)}`;
+                      } else if (value > 0) {
+                        return `₿${value.toPrecision(3)}`;
+                      } else {
+                        return `₿0`;
+                      }
+                    },
+                    tickValues: 5 // Limit the number of ticks
+                  }}
+                  gridXValues={[]} // No vertical grid lines
+                  gridYValues={[]} // No horizontal grid lines
+                  enableGridX={false}
+                  enableGridY={false}
+                  curve="monotoneX"
+                  colors={{ scheme: 'category10' }}
+                  pointSize={0} // Remove points
+                  enablePoints={false} // Disable points
+                  lineWidth={2} // Slightly thicker lines for better visibility
+                  enableArea={true} // Enable area fill
+                  areaOpacity={0.2} // Transparent fill
+                  areaBaselineValue={0} // Start fill from bottom
+                  useMesh={true}
+                  enableSlices="x"
+                  sliceTooltip={({ slice }) => {
+                    return (
+                      <div
+                        style={{
+                          background: 'white',
+                          padding: '9px 12px',
+                          border: '1px solid #ccc',
+                          borderRadius: '3px',
+                        }}
+                      >
+                        <div>Premium: {typeof slice.points[0].data.x === 'number' ? slice.points[0].data.x.toFixed(2) : String(slice.points[0].data.x)}%</div>
+                        {slice.points.map(point => (
+                          <div
+                            key={point.id}
+                            style={{
+                              color: point.serieColor,
+                              padding: '3px 0',
+                            }}
+                          >
+                            <strong>{point.serieId}:</strong> {typeof point.data.y === 'number' ? point.data.y.toFixed(8) : String(point.data.y)} BTC
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  }}
+                  legends={[]}
+                />
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                  <p>Not enough data to display depth chart. Try adjusting filters.</p>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Filter UI */}
+          <Card style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <Title level={4} style={{ margin: '0', minWidth: '120px' }}>Filter Options:</Title>
+              <Space wrap style={{ flex: 1 }}>
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Filter by Source"
+                  allowClear
+                  onChange={handleSourceFilterChange}
+                  value={sourceFilter}
+                  options={getUniqueSources().map(source => ({ value: source, label: source }))}
+                />
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Filter by Type"
+                  allowClear
+                  onChange={handleTypeFilterChange}
+                  value={typeFilter}
+                  options={getUniqueTypes().map(type => ({ value: type, label: type }))}
+                />
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Filter by Currency"
+                  allowClear
+                  onChange={handleCurrencyFilterChange}
+                  value={currencyFilter}
+                  options={getUniqueCurrencies().map(currency => {
+                    const flag = getCurrencyFlag(currency);
+                    return {
+                      value: currency,
+                      label: (
+                        <span>
+                          {currency} {flag}
+                        </span>
+                      ),
+                    };
+                  })}
+                />
+                {(sourceFilter || typeFilter || currencyFilter) && (
+                  <button
+                    onClick={clearFilters}
+                    style={{
+                      background: '#f5f5f5',
+                      border: '1px solid #d9d9d9',
+                      padding: '5px 12px',
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Clear All Filters
+                  </button>
+                )}
+              </Space>
+            </div>
+          </Card>
+
           <Table
             dataSource={currentData}
             columns={columns}
@@ -880,6 +1250,28 @@ const NostrEventsTable: React.FC = () => {
           />
         </>
       )}
+
+      <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          {!ratesLoading && Object.keys(rateSources).length > 0 && (
+            <small style={{ color: '#666' }}>
+              Exchange rates: Average from {getRateSourcesList()}
+            </small>
+          )}
+        </div>
+        <div>
+          <small style={{ color: '#666' }}>
+            {'Vibe coded with 🐨 by'}
+            <a
+              href='http://github.koalasat.xyz'
+              target='_blank'
+              style={{ marginLeft: 4 }}
+            >
+              KoalaSat
+            </a>
+          </small>
+        </div>
+      </div>
     </div>
   );
 };

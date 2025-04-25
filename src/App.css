@@ -3,7 +3,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  background-color: #141414; /* Dark background for the app container */
+  background-color: #000000; /* Black background for the app container */
   min-height: 100vh;
   color: rgba(255, 255, 255, 0.85); /* Light text for dark background */
 }
@@ -22,10 +22,10 @@ body {
 
 /* Ensure modal content is visible on dark theme */
 .ant-modal-content {
-  background-color: #1f1f1f;
+  background-color: #000000;
 }
 
 /* Override code background for better contrast in dark theme */
 .ant-typography code {
-  background-color: #303030;
+  background-color: #000000;
 }
