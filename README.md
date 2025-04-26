@@ -2,6 +2,8 @@
 
 Decentralized P2P Bitcoin exchanges aggregator 
 
+https://p2p.band
+
 ## Getting Started
 
 ### Prerequisites
