@@ -489,7 +489,6 @@ const NostrEventsTable: React.FC = () => {
       const amountTag = event.tags.find(tag => tag[0] === 'fa');
       const currencyTag = event.tags.find(tag => tag[0] === 'f');
       const linkTag = event.tags.find(tag => tag[0] === 'source');
-      const sTag = event.tags.find(tag => tag[0] === 's');
       const premiumTag = event.tags.find(tag => tag[0] === 'premium');
       const bondTag = event.tags.find(tag => tag[0] === 'bond');
       const paymentMethodsTag = event.tags.find(tag => tag[0] === 'pm');
@@ -654,9 +653,11 @@ const NostrEventsTable: React.FC = () => {
               'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e',
               'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2',
             ];
+            const sourceTag = event.tags.find(tag => tag[0] === 'y') ?? [];
 
             // Skip events whose pubkey is not in the allowed list
-            if (!allowedPubkeys.includes(event.pubkey)) {
+            if (!allowedPubkeys.includes(event.pubkey) && sourceTag[1] !== 'mostrop2p') {
+              console.log(sourceTag);
               return;
             }
 
