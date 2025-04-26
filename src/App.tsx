@@ -16,7 +16,7 @@ function App() {
         },
       }}
     >
-      <div className="App digital-noise">
+      <div className="App">
         <NostrEventsTable />
       </div>
     </ConfigProvider>

@@ -493,10 +493,22 @@ const NostrEventsTable: React.FC = () => {
       const premiumTag = event.tags.find(tag => tag[0] === 'premium');
       const bondTag = event.tags.find(tag => tag[0] === 'bond');
       const paymentMethodsTag = event.tags.find(tag => tag[0] === 'pm');
+      const expirationTag = event.tags.find(tag => tag[0] === 'expiration');
 
-      // Skip events with 's' tag equal to 'pending'
-      if (sTag && sTag[1] === 'pending') {
-        return null;
+      // Check if the event has expired by comparing expiration timestamp with current time
+      if (expirationTag && expirationTag[1]) {
+        const expirationTimestamp = parseInt(expirationTag[1], 10);
+        const currentTimestamp = Math.floor(Date.now() / 1000); // Current time in seconds
+
+        // Skip expired events
+        if (!isNaN(expirationTimestamp) && expirationTimestamp < currentTimestamp) {
+          console.log(
+            `Skipping expired event ${event.id}, expired at: ${new Date(
+              expirationTimestamp * 1000
+            ).toISOString()}`
+          );
+          return null;
+        }
       }
 
       // Get currency code from the 'f' tag if it exists
@@ -622,6 +634,7 @@ const NostrEventsTable: React.FC = () => {
         // Define the filter for kind 38383 events
         const filter: Filter = {
           kinds: [38383],
+          '#s': ['pending'],
         };
 
         // Create an array to store all events
@@ -1072,7 +1085,7 @@ const NostrEventsTable: React.FC = () => {
   return (
     <div
       style={{
-        padding: '20px 10px',
+        padding: '0px 0px 20px 0px',
         width: '100%',
         boxSizing: 'border-box',
         display: 'flex',
@@ -1130,294 +1143,299 @@ const NostrEventsTable: React.FC = () => {
           Decentralized P2P Bitcoin exchanges aggregator
         </p>
       </div>
+      <div style={{ padding: '0px 10px' }}>
+        {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
 
-      {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
+        <OnionAddressWarning
+          visible={onionModalVisible}
+          onClose={handleCloseModal}
+          onGo={handleGoAnyway}
+          onDownloadTor={handleDownloadTor}
+          address={currentOnionAddress}
+        />
 
-      <OnionAddressWarning
-        visible={onionModalVisible}
-        onClose={handleCloseModal}
-        onGo={handleGoAnyway}
-        onDownloadTor={handleDownloadTor}
-        address={currentOnionAddress}
-      />
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Spin size="large" />
-          {currentQuote && (
-            <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
-              <p style={{ fontStyle: 'italic' }}>&quot;{currentQuote.quote}&quot;</p>
-              <p style={{ fontWeight: 'bold' }}>— {currentQuote.author}</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Depth Chart */}
-          <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-            <div className="depth-chart-container" style={{ height: '400px' }}>
-              {depthChartData.length > 0 && depthChartData[0].data.length > 0 ? (
-                <ResponsiveLine
-                  data={depthChartData}
-                  margin={{ top: 40, right: 40, bottom: 50, left: 60 }}
-                  theme={{
-                    axis: {
-                      ticks: {
-                        text: {
-                          fill: '#ffffff',
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <Spin size="large" />
+            {currentQuote && (
+              <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
+                <p style={{ fontStyle: 'italic' }}>&quot;{currentQuote.quote}&quot;</p>
+                <p style={{ fontWeight: 'bold' }}>— {currentQuote.author}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Depth Chart */}
+            <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
+              <div className="depth-chart-container" style={{ height: '400px' }}>
+                {depthChartData.length > 0 && depthChartData[0].data.length > 0 ? (
+                  <ResponsiveLine
+                    data={depthChartData}
+                    margin={{ top: 40, right: 40, bottom: 50, left: 60 }}
+                    theme={{
+                      axis: {
+                        ticks: {
+                          text: {
+                            fill: '#ffffff',
+                          },
+                        },
+                        legend: {
+                          text: {
+                            fill: '#ffffff',
+                          },
+                        },
+                        domain: {
+                          line: {
+                            stroke: '#555',
+                            strokeWidth: 1,
+                          },
                         },
                       },
-                      legend: {
-                        text: {
-                          fill: '#ffffff',
-                        },
-                      },
-                      domain: {
+                      grid: {
                         line: {
-                          stroke: '#555',
-                          strokeWidth: 1,
+                          stroke: 'transparent',
                         },
                       },
-                    },
-                    grid: {
-                      line: {
-                        stroke: 'transparent',
+                    }}
+                    xScale={{
+                      type: 'linear',
+                      min:
+                        Math.min(
+                          ...depthChartData.flatMap(series => series.data.map(point => point.x))
+                        ) - 1,
+                      max:
+                        Math.max(
+                          ...depthChartData.flatMap(series => series.data.map(point => point.x))
+                        ) + 1,
+                    }}
+                    yScale={{ type: 'linear', min: 0, max: 'auto' }}
+                    axisTop={null}
+                    axisRight={null}
+                    axisBottom={{
+                      tickSize: 5,
+                      tickPadding: 5,
+                      tickRotation: 0,
+                      legend: 'Premium %',
+                      legendOffset: 36,
+                      legendPosition: 'middle',
+                      tickValues: 5, // Limit the number of ticks
+                      format: value =>
+                        typeof value === 'number' ? `${value.toFixed(0)}%` : `${value}%`,
+                    }}
+                    axisLeft={{
+                      tickSize: 5,
+                      tickPadding: 5,
+                      tickRotation: 0,
+                      legend: '',
+                      legendOffset: -80,
+                      legendPosition: 'middle',
+                      format: value => {
+                        if (typeof value !== 'number') return `₿${value}`;
+
+                        // Always round to 2 decimal places
+                        return `₿${value.toFixed(2)}`;
                       },
-                    },
-                  }}
-                  xScale={{
-                    type: 'linear',
-                    min:
-                      Math.min(
-                        ...depthChartData.flatMap(series => series.data.map(point => point.x))
-                      ) - 1,
-                    max:
-                      Math.max(
-                        ...depthChartData.flatMap(series => series.data.map(point => point.x))
-                      ) + 1,
-                  }}
-                  yScale={{ type: 'linear', min: 0, max: 'auto' }}
-                  axisTop={null}
-                  axisRight={null}
-                  axisBottom={{
-                    tickSize: 5,
-                    tickPadding: 5,
-                    tickRotation: 0,
-                    legend: 'Premium %',
-                    legendOffset: 36,
-                    legendPosition: 'middle',
-                    tickValues: 5, // Limit the number of ticks
-                    format: value =>
-                      typeof value === 'number' ? `${value.toFixed(0)}%` : `${value}%`,
-                  }}
-                  axisLeft={{
-                    tickSize: 5,
-                    tickPadding: 5,
-                    tickRotation: 0,
-                    legend: '',
-                    legendOffset: -80,
-                    legendPosition: 'middle',
-                    format: value => {
-                      if (typeof value !== 'number') return `₿${value}`;
-
-                      // Always round to 2 decimal places
-                      return `₿${value.toFixed(2)}`;
-                    },
-                    tickValues: 5, // Limit the number of ticks
-                  }}
-                  enableGridX={false}
-                  enableGridY={false}
-                  curve="monotoneX"
-                  colors={{ scheme: 'category10' }}
-                  pointSize={0} // Remove points
-                  enablePoints={false} // Disable points
-                  lineWidth={2} // Slightly thicker lines for better visibility
-                  enableArea={true} // Enable area fill
-                  areaOpacity={0.2} // Transparent fill
-                  areaBaselineValue={0} // Start fill from bottom
-                  useMesh={true}
-                  enableSlices="x"
-                  sliceTooltip={({ slice }) => {
-                    return (
-                      <div
-                        style={{
-                          background: '#1f1f1f',
-                          padding: '9px 12px',
-                          border: '1px solid #333',
-                          borderRadius: '3px',
-                          color: 'rgba(255, 255, 255, 0.85)',
-                          boxShadow: '0 3px 6px rgba(0, 0, 0, 0.2)',
-                        }}
-                      >
-                        <div style={{ fontWeight: 'bold', marginBottom: '6px', color: '#1890ff' }}>
-                          Premium:{' '}
-                          {typeof slice.points[0].data.x === 'number'
-                            ? slice.points[0].data.x.toFixed(2)
-                            : String(slice.points[0].data.x)}
-                          %
-                        </div>
-                        {slice.points.map(point => (
+                      tickValues: 5, // Limit the number of ticks
+                    }}
+                    enableGridX={false}
+                    enableGridY={false}
+                    curve="monotoneX"
+                    colors={{ scheme: 'category10' }}
+                    pointSize={0} // Remove points
+                    enablePoints={false} // Disable points
+                    lineWidth={2} // Slightly thicker lines for better visibility
+                    enableArea={true} // Enable area fill
+                    areaOpacity={0.2} // Transparent fill
+                    areaBaselineValue={0} // Start fill from bottom
+                    useMesh={true}
+                    enableSlices="x"
+                    sliceTooltip={({ slice }) => {
+                      return (
+                        <div
+                          style={{
+                            background: '#1f1f1f',
+                            padding: '9px 12px',
+                            border: '1px solid #333',
+                            borderRadius: '3px',
+                            color: 'rgba(255, 255, 255, 0.85)',
+                            boxShadow: '0 3px 6px rgba(0, 0, 0, 0.2)',
+                          }}
+                        >
                           <div
-                            key={point.id}
-                            style={{
-                              color: point.serieColor,
-                              padding: '3px 0',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              borderBottom:
-                                point.id === slice.points[slice.points.length - 1].id
-                                  ? 'none'
-                                  : '1px solid rgba(255, 255, 255, 0.1)',
-                              paddingBottom: '4px',
-                              marginBottom: '4px',
-                            }}
+                            style={{ fontWeight: 'bold', marginBottom: '6px', color: '#1890ff' }}
                           >
-                            <strong>{point.serieId}:</strong>{' '}
-                            {typeof point.data.y === 'number'
-                              ? point.data.y.toFixed(8)
-                              : String(point.data.y)}{' '}
-                            BTC
+                            Premium:{' '}
+                            {typeof slice.points[0].data.x === 'number'
+                              ? slice.points[0].data.x.toFixed(2)
+                              : String(slice.points[0].data.x)}
+                            %
                           </div>
-                        ))}
-                      </div>
-                    );
-                  }}
-                  legends={[]}
-                />
-              ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                  }}
-                >
-                  <p>Not enough data to display depth chart. Try adjusting filters.</p>
-                </div>
-              )}
-            </div>
-          </Card>
+                          {slice.points.map(point => (
+                            <div
+                              key={point.id}
+                              style={{
+                                color: point.serieColor,
+                                padding: '3px 0',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                borderBottom:
+                                  point.id === slice.points[slice.points.length - 1].id
+                                    ? 'none'
+                                    : '1px solid rgba(255, 255, 255, 0.1)',
+                                paddingBottom: '4px',
+                                marginBottom: '4px',
+                              }}
+                            >
+                              <strong>{point.serieId}:</strong>{' '}
+                              {typeof point.data.y === 'number'
+                                ? point.data.y.toFixed(8)
+                                : String(point.data.y)}{' '}
+                              BTC
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }}
+                    legends={[]}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '100%',
+                    }}
+                  >
+                    <p>Not enough data to display depth chart. Try adjusting filters.</p>
+                  </div>
+                )}
+              </div>
+            </Card>
 
-          {/* Filter UI */}
-          <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-            <div
-              className="filter-container"
-              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
-            >
-              <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
-                Filter Options:
-              </Title>
-              <Space wrap style={{ flex: 1 }}>
-                <Select
-                  style={{ width: 180 }}
-                  placeholder="Source"
-                  allowClear
-                  onChange={handleSourceFilterChange}
-                  value={sourceFilter}
-                  options={getUniqueSources().map(source => ({ value: source, label: source }))}
-                />
-                <Select
-                  style={{ width: 180 }}
-                  placeholder="Type"
-                  allowClear
-                  onChange={handleTypeFilterChange}
-                  value={typeFilter}
-                  options={getUniqueTypes().map(type => ({ value: type, label: type }))}
-                />
-                <Select
-                  style={{ width: 180 }}
-                  placeholder="Currency"
-                  allowClear
-                  onChange={handleCurrencyFilterChange}
-                  value={currencyFilter}
-                  options={getUniqueCurrencies().map(currency => {
-                    const flag = getCurrencyFlag(currency);
-                    return {
-                      value: currency,
-                      label: (
-                        <span>
-                          {currency} {flag}
-                        </span>
-                      ),
-                    };
-                  })}
-                />
-                <Input
-                  style={{ width: 200 }}
-                  placeholder="Payment Method"
-                  value={paymentMethodFilter}
-                  onChange={handlePaymentMethodFilterChange}
-                  allowClear
-                />
-                <button
-                  onClick={clearFilters}
-                  style={{
-                    background: '#222',
-                    border: '1px solid #444',
-                    color: '#fff',
-                    padding: '5px 12px',
-                    borderRadius: '2px',
-                    cursor: 'pointer',
-                  }}
-                  disabled={!sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter}
-                >
-                  Clear All Filters
-                </button>
-              </Space>
-            </div>
-          </Card>
+            {/* Filter UI */}
+            <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
+              <div
+                className="filter-container"
+                style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
+              >
+                <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
+                  Filter Options:
+                </Title>
+                <Space wrap style={{ flex: 1 }}>
+                  <Select
+                    style={{ width: 180 }}
+                    placeholder="Source"
+                    allowClear
+                    onChange={handleSourceFilterChange}
+                    value={sourceFilter}
+                    options={getUniqueSources().map(source => ({ value: source, label: source }))}
+                  />
+                  <Select
+                    style={{ width: 180 }}
+                    placeholder="Type"
+                    allowClear
+                    onChange={handleTypeFilterChange}
+                    value={typeFilter}
+                    options={getUniqueTypes().map(type => ({ value: type, label: type }))}
+                  />
+                  <Select
+                    style={{ width: 180 }}
+                    placeholder="Currency"
+                    allowClear
+                    onChange={handleCurrencyFilterChange}
+                    value={currencyFilter}
+                    options={getUniqueCurrencies().map(currency => {
+                      const flag = getCurrencyFlag(currency);
+                      return {
+                        value: currency,
+                        label: (
+                          <span>
+                            {currency} {flag}
+                          </span>
+                        ),
+                      };
+                    })}
+                  />
+                  <Input
+                    style={{ width: 200 }}
+                    placeholder="Payment Method"
+                    value={paymentMethodFilter}
+                    onChange={handlePaymentMethodFilterChange}
+                    allowClear
+                  />
+                  <button
+                    onClick={clearFilters}
+                    style={{
+                      background: '#222',
+                      border: '1px solid #444',
+                      color: '#fff',
+                      padding: '5px 12px',
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                    }}
+                    disabled={
+                      !sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter
+                    }
+                  >
+                    Clear All Filters
+                  </button>
+                </Space>
+              </div>
+            </Card>
 
-          <Table
-            dataSource={currentData}
-            columns={columns}
-            rowKey="id"
-            pagination={false}
-            bordered
-            style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}
-            onChange={handleTableChange}
-            sortDirections={['ascend', 'descend']}
-          />
+            <Table
+              dataSource={currentData}
+              columns={columns}
+              rowKey="id"
+              pagination={false}
+              bordered
+              style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}
+              onChange={handleTableChange}
+              sortDirections={['ascend', 'descend']}
+            />
 
-          <Pagination
-            current={currentPage}
-            pageSize={pageSize}
-            total={totalEvents}
-            onChange={handlePageChange}
-            showSizeChanger={false}
-            showTotal={total => `Total ${total} events`}
-          />
-        </>
-      )}
+            <Pagination
+              current={currentPage}
+              pageSize={pageSize}
+              total={totalEvents}
+              onChange={handlePageChange}
+              showSizeChanger={false}
+              showTotal={total => `Total ${total} events`}
+            />
+          </>
+        )}
 
-      <div
-        style={{
-          marginTop: 'auto',
-          paddingTop: 20,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <div>
-          {!ratesLoading && Object.keys(rateSources).length > 0 && (
+        <div
+          style={{
+            marginTop: 'auto',
+            paddingTop: 20,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            {!ratesLoading && Object.keys(rateSources).length > 0 && (
+              <small style={{ color: '#666' }}>
+                Exchange rates: Average from {getRateSourcesList()}
+              </small>
+            )}
+          </div>
+          <div>
             <small style={{ color: '#666' }}>
-              Exchange rates: Average from {getRateSourcesList()}
+              {'Vibe coded with 🐨 by'}
+              <a
+                href="https://njump.me/npub1v3tgrwwsv7c6xckyhm5dmluc05jxd4yeqhpxew87chn0kua0tjzqc6yvjh"
+                target="_blank"
+                style={{ marginLeft: 4 }}
+                rel="noreferrer"
+              >
+                KoalaSat
+              </a>
             </small>
-          )}
-        </div>
-        <div>
-          <small style={{ color: '#666' }}>
-            {'Vibe coded with 🐨 by'}
-            <a
-              href="https://njump.me/npub1v3tgrwwsv7c6xckyhm5dmluc05jxd4yeqhpxew87chn0kua0tjzqc6yvjh"
-              target="_blank"
-              style={{ marginLeft: 4 }}
-              rel="noreferrer"
-            >
-              KoalaSat
-            </a>
-          </small>
+          </div>
         </div>
       </div>
     </div>
