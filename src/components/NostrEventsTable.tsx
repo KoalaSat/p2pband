@@ -489,6 +489,7 @@ const NostrEventsTable: React.FC = () => {
       const amountTag = event.tags.find(tag => tag[0] === 'fa');
       const currencyTag = event.tags.find(tag => tag[0] === 'f');
       const linkTag = event.tags.find(tag => tag[0] === 'source');
+      const sTag = event.tags.find(tag => tag[0] === 's');
       const premiumTag = event.tags.find(tag => tag[0] === 'premium');
       const bondTag = event.tags.find(tag => tag[0] === 'bond');
       const paymentMethodsTag = event.tags.find(tag => tag[0] === 'pm');
@@ -508,6 +509,20 @@ const NostrEventsTable: React.FC = () => {
           );
           return null;
         }
+      }
+
+      if (sourceTag?.[1] === 'robosats' && linkTag?.[1]) {
+        const coordinators: Record<string, string> = {
+          'over the moon': 'moon',
+          bitcoinveneto: 'veneto',
+          thebiglake: 'lake',
+          templeofsats: 'temple',
+        };
+        let link = linkTag[1];
+        Object.keys(coordinators).forEach(coord => {
+          link = link.replace(coord, coordinators[coord]);
+        });
+        linkTag[1] = link;
       }
 
       // Get currency code from the 'f' tag if it exists
@@ -1043,6 +1058,28 @@ const NostrEventsTable: React.FC = () => {
     setOnionModalVisible(false);
   };
 
+  // Handle .onion address actions
+  const onGoClearnet = () => {
+    if (currentOnionAddress) {
+      // Replace the onion domain with https://unsafe.robosats.org while preserving the path
+      const clearNetAddress = currentOnionAddress.replace(
+        /^https?:\/\/[^\/]+/,
+        'https://unsafe.robosats.org'
+      );
+      window.open(clearNetAddress, '_blank', 'noopener,noreferrer');
+    }
+    setOnionModalVisible(false);
+  };
+
+  const onCopyClink = () => {
+    if (currentOnionAddress) {
+      navigator.clipboard
+        .writeText(currentOnionAddress)
+        .catch(err => console.error('Failed to copy address: ', err));
+    }
+    setOnionModalVisible(false);
+  };
+
   const handleDownloadTor = () => {
     window.open('https://www.torproject.org/download/', '_blank', 'noopener,noreferrer');
     setOnionModalVisible(false);
@@ -1153,6 +1190,8 @@ const NostrEventsTable: React.FC = () => {
           visible={onionModalVisible}
           onClose={handleCloseModal}
           onGo={handleGoAnyway}
+          onCopyClink={onCopyClink}
+          onGoClearnet={onGoClearnet}
           onDownloadTor={handleDownloadTor}
           address={currentOnionAddress}
         />
