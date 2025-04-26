@@ -243,17 +243,18 @@ const NostrEventsTable: React.FC = () => {
       // Convert amount to BTC using the exchange rate (reverse the rate)
       let btcAmount = 0;
       const currencyCode = event.currencyCode.toUpperCase();
-
       if (exchangeRates[currencyCode] && exchangeRates[currencyCode] > 0) {
         // Calculate the exchange rate with premium applied
         const rateWithPremium = exchangeRates[currencyCode] * (1 + premiumValue / 100);
 
         // Apply reverse exchange rate to get BTC amount
         btcAmount = event.rawAmount / rateWithPremium;
+      } else {
+        return;
       }
 
-      // Skip events with zero BTC amount
-      if (btcAmount <= 0) {
+      // Skip events with zero BTC amount or too hight amounts
+      if (btcAmount <= 0 || btcAmount > 0.5) {
         return;
       }
 
