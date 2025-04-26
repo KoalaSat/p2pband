@@ -56,15 +56,15 @@ const OnionAddressWarning: React.FC<OnionAddressWarningProps> = ({
             textShadow: '0 0 1px rgba(60, 247, 60, 0.2)',
           }}
         >
-          .onion addresses require the Tor Browser to work properly. If you're not using Tor
+          .onion addresses require the Tor Browser to work properly. If you&quot;re not using Tor
           Browser, the link may not load correctly.
         </Paragraph>
         <Space direction="vertical" style={{ width: '100%', marginTop: '20px' }}>
           <Button type="primary" onClick={onGo} block>
-            // PROCEED ANYWAY
+            {'// PROCEED ANYWAY'}
           </Button>
           <Button onClick={onDownloadTor} block>
-            // DOWNLOAD TOR BROWSER
+            {'// DOWNLOAD TOR BROWSER'}
           </Button>
         </Space>
       </div>

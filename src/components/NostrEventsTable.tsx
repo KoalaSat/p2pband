@@ -1081,7 +1081,7 @@ const NostrEventsTable: React.FC = () => {
         background: '#121212',
       }}
     >
-      <div 
+      <div
         style={{
           marginBottom: '20px',
           textAlign: 'center',
@@ -1091,7 +1091,7 @@ const NostrEventsTable: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        <h1 
+        <h1
           style={{
             color: '#0f0',
             textShadow: '0 0 5px #0f0, 0 0 10px #0f0',
@@ -1105,7 +1105,7 @@ const NostrEventsTable: React.FC = () => {
           }}
         >
           P2P ₿AND
-          <span 
+          <span
             style={{
               position: 'absolute',
               top: 0,
@@ -1130,7 +1130,7 @@ const NostrEventsTable: React.FC = () => {
           Decentralized P2P Bitcoin exchanges aggregator
         </p>
       </div>
-      
+
       {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
 
       <OnionAddressWarning
@@ -1146,7 +1146,7 @@ const NostrEventsTable: React.FC = () => {
           <Spin size="large" />
           {currentQuote && (
             <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
-              <p style={{ fontStyle: 'italic' }}>"{currentQuote.quote}"</p>
+              <p style={{ fontStyle: 'italic' }}>&quot;{currentQuote.quote}&quot;</p>
               <p style={{ fontWeight: 'bold' }}>— {currentQuote.author}</p>
             </div>
           )}
