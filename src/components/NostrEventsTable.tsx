@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Pagination, Typography, Spin, Alert, Tag, Select, Space, Card, Input } from 'antd';
+import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
 import { ResponsiveLine } from '@nivo/line';
 import OnionAddressWarning from './OnionAddressWarning';
@@ -91,6 +92,7 @@ const NostrEventsTable: React.FC = () => {
   const [events, setEvents] = useState<EventTableData[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventTableData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [currentQuote, setCurrentQuote] = useState<{ quote: string; author: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalEvents, setTotalEvents] = useState<number>(0);
@@ -143,74 +145,65 @@ const NostrEventsTable: React.FC = () => {
 
       const upperCaseCurrency = currencyCode.toUpperCase();
 
-      if (!exchangeRates[upperCaseCurrency]) {
-        console.log(`calculateBtcPrice: No exchange rate found for ${upperCaseCurrency}`);
+      // First try using the main exchangeRates object
+      if (exchangeRates[upperCaseCurrency] && exchangeRates[upperCaseCurrency] > 0) {
+        // Get the base exchange rate
+        const baseRate = exchangeRates[upperCaseCurrency];
 
-        // Check if we have any individual source rates for this currency
-        const sourcesWithRate: Record<string, number> = {};
-        Object.entries(rateSources).forEach(([sourceName, sourceRates]) => {
-          if (sourceRates[upperCaseCurrency]) {
-            sourcesWithRate[sourceName] = sourceRates[upperCaseCurrency];
-          }
-        });
-
-        // If we have at least one source with a rate, use that
-        if (Object.keys(sourcesWithRate).length > 0) {
-          console.log(
-            `Found rates for ${upperCaseCurrency} in individual sources:`,
-            sourcesWithRate
-          );
-
-          // Calculate the average of available rates
-          const rates = Object.values(sourcesWithRate);
-          const averageRate = calculateAverage(rates);
-
-          // If the average is 0, return null
-          if (averageRate === 0) {
-            return null;
-          }
-
-          // Apply premium
-          let finalRate = averageRate;
-          if (premium) {
-            const premiumPercent = parseFloat(premium) / 100;
-            finalRate = averageRate * (1 + premiumPercent);
-          }
-
-          // Return in format: {rate with premium} {currency code}/BTC
-          const result = `${finalRate.toLocaleString(undefined, {
-            maximumFractionDigits: 2,
-          })} ${upperCaseCurrency}/BTC`;
-          console.log(`Using calculated average: ${result}`);
-          return result;
+        // Apply premium to the rate if it exists
+        let finalRate = baseRate;
+        if (premium) {
+          const premiumPercent = parseFloat(premium) / 100;
+          finalRate = baseRate * (1 + premiumPercent);
+          console.log(`Applying premium of ${premium} %: ${baseRate} → ${finalRate}`);
         }
 
-        // No rate available, return null
-        return null;
+        // Return in format: {rate with premium} {currency code}/BTC
+        const result = `${finalRate.toLocaleString(undefined, {
+          maximumFractionDigits: 0,
+        })} ${upperCaseCurrency}/BTC`;
+        console.log(`calculateBtcPrice: Calculated price using main rates: ${result}`);
+        return result;
       }
 
-      // Get the base exchange rate
-      const baseRate = exchangeRates[upperCaseCurrency];
+      // If no rate in main exchangeRates, check individual sources
+      console.log(
+        `calculateBtcPrice: No exchange rate found for ${upperCaseCurrency} in main rates`
+      );
 
-      // If the base rate is 0, return null
-      if (baseRate === 0) {
-        return null;
+      const sourcesWithRate: Record<string, number> = {};
+      Object.entries(rateSources).forEach(([sourceName, sourceRates]) => {
+        if (sourceRates[upperCaseCurrency] && sourceRates[upperCaseCurrency] > 0) {
+          sourcesWithRate[sourceName] = sourceRates[upperCaseCurrency];
+        }
+      });
+
+      // If we have at least one source with a valid rate, use that
+      if (Object.keys(sourcesWithRate).length > 0) {
+        console.log(`Found rates for ${upperCaseCurrency} in individual sources:`, sourcesWithRate);
+
+        // Calculate the average of available rates
+        const rates = Object.values(sourcesWithRate);
+        const averageRate = calculateAverage(rates);
+
+        // Apply premium
+        let finalRate = averageRate;
+        if (premium) {
+          const premiumPercent = parseFloat(premium) / 100;
+          finalRate = averageRate * (1 + premiumPercent);
+        }
+
+        // Return in format: {rate with premium} {currency code}/BTC
+        const result = `${finalRate.toLocaleString(undefined, {
+          maximumFractionDigits: 0,
+        })} ${upperCaseCurrency}/BTC`;
+        console.log(`Using calculated average from sources: ${result}`);
+        return result;
       }
 
-      // Apply premium to the rate if it exists
-      let finalRate = baseRate;
-      if (premium) {
-        const premiumPercent = parseFloat(premium) / 100;
-        finalRate = baseRate * (1 + premiumPercent);
-        console.log(`Applying premium of ${premium} %: ${baseRate} → ${finalRate}`);
-      }
-
-      // Return in format: {rate with premium} {currency code}/BTC
-      const result = `${finalRate.toLocaleString(undefined, {
-        maximumFractionDigits: 2,
-      })} ${upperCaseCurrency}/BTC`;
-      console.log(`calculateBtcPrice: Calculated price: ${result}`);
-      return result;
+      // No rate available from any source, return null
+      console.log(`No exchange rate available for ${upperCaseCurrency} from any source`);
+      return null;
     } catch (error) {
       console.error('Error in calculateBtcPrice:', error);
       return null;
@@ -408,7 +401,7 @@ const NostrEventsTable: React.FC = () => {
         // Convert rates to uppercase keys for consistency
         const rates: Record<string, number> = {};
         Object.entries(data.bitcoin).forEach(([currency, rate]) => {
-          rates[currency] = rate as number;
+          rates[currency.toLocaleUpperCase()] = rate as number;
         });
 
         console.log('Processed CoinGecko rates:', rates);
@@ -559,11 +552,6 @@ const NostrEventsTable: React.FC = () => {
         }
       }
 
-      if (!currencyCode) {
-        console.log(`Using default USD currency code for event with no currency`);
-        currencyCode = 'USD'; // Default to USD if no currency specified
-      }
-
       // Create the event data object first without the price
       const eventData: EventTableData = {
         id: event.id,
@@ -601,11 +589,19 @@ const NostrEventsTable: React.FC = () => {
     }
   };
 
+  // Function to get a random cypherpunk quote
+  const getRandomQuote = () => {
+    const quotes = cypherpunkQuotes.quotes;
+    const randomIndex = Math.floor(Math.random() * quotes.length);
+    return quotes[randomIndex];
+  };
+
   // Main effect to coordinate data loading
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       setError(null);
+      setCurrentQuote(getRandomQuote());
 
       // First, fetch exchange rates
       await fetchExchangeRates();
@@ -928,11 +924,7 @@ const NostrEventsTable: React.FC = () => {
           return '-';
         }
 
-        // If there's a premium, make it clear that the rate includes it
-        if (record.premium) {
-          return value;
-        }
-
+        // If there's a premium, the price already includes it from the calculation function
         return value;
       },
     },
@@ -1078,7 +1070,16 @@ const NostrEventsTable: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '20px 10px', width: '100%', boxSizing: 'border-box' }}>
+    <div
+      style={{
+        padding: '20px 10px',
+        width: '100%',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 'calc(100vh - 40px)',
+      }}
+    >
       {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
 
       <OnionAddressWarning
@@ -1092,7 +1093,12 @@ const NostrEventsTable: React.FC = () => {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '50px' }}>
           <Spin size="large" />
-          <p style={{ marginTop: '20px' }}>Connecting to relays and fetching events...</p>
+          {currentQuote && (
+            <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
+              <p style={{ fontStyle: 'italic' }}>"{currentQuote.quote}"</p>
+              <p style={{ fontWeight: 'bold' }}>— {currentQuote.author}</p>
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -1163,16 +1169,8 @@ const NostrEventsTable: React.FC = () => {
                     format: value => {
                       if (typeof value !== 'number') return `₿${value}`;
 
-                      // Use different precision based on the value
-                      if (value >= 1) {
-                        return `₿${value.toFixed(2)}`;
-                      } else if (value >= 0.01) {
-                        return `₿${value.toFixed(4)}`;
-                      } else if (value > 0) {
-                        return `₿${value.toPrecision(3)}`;
-                      } else {
-                        return `₿0`;
-                      }
+                      // Always round to 2 decimal places
+                      return `₿${value.toFixed(2)}`;
                     },
                     tickValues: 5, // Limit the number of ticks
                   }}
@@ -1343,7 +1341,8 @@ const NostrEventsTable: React.FC = () => {
 
       <div
         style={{
-          marginTop: '10px',
+          marginTop: 'auto',
+          paddingTop: 20,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

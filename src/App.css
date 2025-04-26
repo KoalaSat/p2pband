@@ -53,7 +53,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px 10px; /* Reduced side padding for mobile */
+  padding: 20px 10px 0px 10px; /* Reduced side padding for mobile */
   background-color: #090909; /* Dark background for the app container */
   min-height: 100vh;
   color: #3cf73c; /* Brighter green for better readability */
@@ -77,12 +77,6 @@
   background-size: 200% 200%;
 }
 
-/* Add responsive padding adjustments */
-@media (min-width: 768px) {
-  .App {
-    padding: 20px; /* Restore full padding on larger screens */
-  }
-}
 
 body {
   background-color: #090909; /* Dark background for the page */
