@@ -1157,7 +1157,15 @@ const NostrEventsTable: React.FC = () => {
         />
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '50px',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 'calc(100vh - 190px)',
+            }}
+          >
             <Spin size="large" />
             {currentQuote && (
               <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
@@ -1410,12 +1418,15 @@ const NostrEventsTable: React.FC = () => {
         )}
 
         <div
+          className="footer-container"
           style={{
             marginTop: 'auto',
-            paddingTop: 20,
+            padding: '10px 0',
             display: 'flex',
+            flexWrap: 'wrap',
             justifyContent: 'space-between',
             alignItems: 'center',
+            gap: '10px',
           }}
         >
           <div>
@@ -1439,6 +1450,16 @@ const NostrEventsTable: React.FC = () => {
             </small>
           </div>
         </div>
+        <style>
+          {`
+            @media (max-width: 768px) {
+              .footer-container {
+                flex-direction: column;
+                align-items: flex-start;
+              }
+            }
+          `}
+        </style>
       </div>
     </div>
   );
