@@ -1154,7 +1154,7 @@ const NostrEventsTable: React.FC = () => {
             fontWeight: 'bold',
             textTransform: 'uppercase',
             borderBottom: '2px solid #0f0',
-            paddingBottom: '10px',
+            padding: '10px',
             position: 'relative',
           }}
         >
@@ -1363,6 +1363,9 @@ const NostrEventsTable: React.FC = () => {
                   </div>
                 )}
               </div>
+              <Title level={4} style={{ margin: '20px 0 0 0', minWidth: '120px' }}>
+                {`${totalEvents}`} total orders
+              </Title>
             </Card>
 
             {/* Filter UI */}
@@ -1453,7 +1456,7 @@ const NostrEventsTable: React.FC = () => {
               total={totalEvents}
               onChange={handlePageChange}
               showSizeChanger={false}
-              showTotal={total => `Total ${total} events`}
+              showTotal={() => ''}
             />
           </>
         )}
