@@ -577,8 +577,10 @@ const NostrEventsTable: React.FC = () => {
         bond: bondTag ? bondTag[1] : null,
         price: null,
         rawAmount: rawAmount,
-        paymentMethods: paymentMethodsTag ? paymentMethodsTag[1] : '-',
+        paymentMethods: paymentMethodsTag ? paymentMethodsTag.slice(1).join(' ') : '-',
       };
+
+      if (eventData.source === 'robosats') console.log(paymentMethodsTag);
 
       try {
         // Calculate BTC price if we have both a currency code and an amount
