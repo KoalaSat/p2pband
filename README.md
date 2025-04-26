@@ -1,25 +1,6 @@
-# Nostr Events Viewer
+# P2P BAND
 
-A React application that connects to Nostr relays and displays events of kind 38383 in a paginated table.
-
-## Features
-
-- Connects to multiple Nostr relays, including the specified `wss://nostr.satstralia.com`
-- Fetches and displays all available events of kind 38383
-- Filters out events with an "s" tag equal to "pending"
-- Displays event data in a table with the following columns:
-  - Source (value of "y" tag)
-  - Is (value of "k" tag)
-  - Amount (value of "amt" tag)
-  - Link (value of "source" tag)
-- Paginates the events table (20 items per page)
-- Sorts events by creation time (newest first)
-
-## Technologies Used
-
-- React with TypeScript
-- nostr-tools for Nostr protocol communication
-- Ant Design for UI components
+Decentralized P2P Bitcoin exchanges aggregator 
 
 ## Getting Started
 
@@ -62,13 +43,6 @@ npm run build
 ```
 
 This creates optimized files in the `build` folder, ready for deployment.
-
-## Project Structure
-
-- `src/components/NostrEventsTable.tsx`: Main component that handles connecting to relays and displaying events
-- `src/App.tsx`: App component that integrates the NostrEventsTable
-- `src/App.css`: Custom styles for the application
-- `public/index.html`: HTML entry point
 
 ## Notes on Nostr Integration
 

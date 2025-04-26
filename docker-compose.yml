@@ -1,0 +1,29 @@
+version: '3.4'
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '85:80'
+      - '449:443'
+    restart: always
+    volumes:
+      - ./nginx/conf/:/etc/nginx/conf.d/:ro
+      - /var/www/certbot:/var/www/certbot/:ro
+      - /etc/letsencrypt/:/etc/nginx/ssl/:ro
+    networks:
+      - nginx
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+  certbot:
+    image: certbot/certbot:latest
+    restart: always
+    volumes:
+      - /var/www/certbot/:/var/www/certbot/:rw
+      - /etc/letsencrypt/:/etc/letsencrypt/:rw
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+networks:
+  nginx:
+    driver: bridge
+    external: true
