@@ -1465,12 +1465,19 @@ const NostrEventsTable: React.FC = () => {
             />
 
             <Pagination
+              responsive
               current={currentPage}
               pageSize={pageSize}
               total={totalEvents}
               onChange={handlePageChange}
               showSizeChanger={false}
-              showTotal={() => ''}
+              showLessItems={false}
+              size="default"
+              style={{
+                width: '100%',
+                textAlign: 'center',
+                marginBottom: '20px',
+              }}
             />
           </>
         )}
