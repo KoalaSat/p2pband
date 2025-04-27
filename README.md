@@ -1,6 +1,6 @@
 # P2P BAND
 
-Decentralized P2P Bitcoin exchanges aggregator 
+P2P Bitcoin exchanges decentralized aggregator 
 
 https://p2p.band
 

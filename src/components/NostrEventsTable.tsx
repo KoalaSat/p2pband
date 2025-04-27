@@ -146,9 +146,9 @@ const NostrEventsTable: React.FC = () => {
       const upperCaseCurrency = currencyCode.toUpperCase();
 
       // First try using the main exchangeRates object
-      if (exchangeRates[upperCaseCurrency] && exchangeRates[upperCaseCurrency] > 0) {
+      if (exchangeRates[currencyCode] && exchangeRates[currencyCode] > 0) {
         // Get the base exchange rate
-        const baseRate = exchangeRates[upperCaseCurrency];
+        const baseRate = exchangeRates[currencyCode];
 
         // Apply premium to the rate if it exists
         let finalRate = baseRate;
@@ -1181,7 +1181,7 @@ const NostrEventsTable: React.FC = () => {
           `}
         </style>
         <p style={{ color: '#0f0', fontSize: '0.9rem', margin: 0 }}>
-          Decentralized P2P Bitcoin exchanges aggregator
+          P2P Bitcoin exchanges decentralized aggregator
         </p>
       </div>
       <div style={{ padding: '0px 10px' }}>
