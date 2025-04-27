@@ -283,8 +283,6 @@ button:hover,
 /* Select and input styling */
 .ant-select, 
 .ant-input {
-  background-color: #090909 !important;
-  border: 1px solid #0f0 !important;
   color: #0f0 !important;
   font-family: 'Share Tech Mono', monospace !important;
   border-radius: 0 !important;
