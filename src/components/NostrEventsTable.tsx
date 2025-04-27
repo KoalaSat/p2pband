@@ -308,16 +308,24 @@ const NostrEventsTable: React.FC = () => {
       sellData.push({ x: item.premium, y: sellAccumulated });
     });
 
-    return [
-      {
+    // Only include series that have data
+    const result = [];
+
+    if (buyData.length > 0) {
+      result.push({
         id: 'Buy Orders',
         data: buyData,
-      },
-      {
+      });
+    }
+
+    if (sellData.length > 0) {
+      result.push({
         id: 'Sell Orders',
         data: sellData,
-      },
-    ];
+      });
+    }
+
+    return result;
   };
 
   // Function to combine exchange rates from multiple sources and calculate the average
@@ -1220,7 +1228,8 @@ const NostrEventsTable: React.FC = () => {
             {/* Depth Chart */}
             <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
               <div className="depth-chart-container" style={{ height: '400px' }}>
-                {depthChartData.length > 0 && depthChartData[0].data.length > 0 ? (
+                {depthChartData.length > 0 &&
+                depthChartData.some(series => series.data.length > 0) ? (
                   <ResponsiveLine
                     data={depthChartData}
                     margin={{ top: 40, right: 40, bottom: 50, left: 60 }}
@@ -1292,7 +1301,7 @@ const NostrEventsTable: React.FC = () => {
                     enableGridX={false}
                     enableGridY={false}
                     curve="monotoneX"
-                    colors={{ scheme: 'category10' }}
+                    colors={d => (d.id === 'Buy Orders' ? '#1f77b4' : '#ff7f0e')} // Blue for Buy, Orange for Sell
                     pointSize={0} // Remove points
                     enablePoints={false} // Disable points
                     lineWidth={2} // Slightly thicker lines for better visibility
