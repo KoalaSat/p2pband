@@ -1364,7 +1364,7 @@ const NostrEventsTable: React.FC = () => {
                 )}
               </div>
               <Title level={4} style={{ margin: '20px 0 0 0', minWidth: '120px' }}>
-                {`${totalEvents}`} total orders
+                {`${totalEvents}`} Total Orders
               </Title>
             </Card>
 
