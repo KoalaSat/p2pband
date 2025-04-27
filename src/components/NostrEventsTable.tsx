@@ -143,8 +143,6 @@ const NostrEventsTable: React.FC = () => {
         return null;
       }
 
-      const upperCaseCurrency = currencyCode.toUpperCase();
-
       // First try using the main exchangeRates object
       if (exchangeRates[currencyCode] && exchangeRates[currencyCode] > 0) {
         // Get the base exchange rate
@@ -161,26 +159,30 @@ const NostrEventsTable: React.FC = () => {
         // Return in format: {rate with premium} {currency code}/BTC
         const result = `${finalRate.toLocaleString(undefined, {
           maximumFractionDigits: 0,
-        })} ${upperCaseCurrency}/BTC`;
+        })} ${currencyCode.toUpperCase()}/BTC`;
         console.log(`calculateBtcPrice: Calculated price using main rates: ${result}`);
         return result;
       }
 
       // If no rate in main exchangeRates, check individual sources
       console.log(
-        `calculateBtcPrice: No exchange rate found for ${upperCaseCurrency} in main rates`
+        `calculateBtcPrice: No exchange rate found for ${currencyCode.toUpperCase()}`,
+        exchangeRates
       );
 
       const sourcesWithRate: Record<string, number> = {};
       Object.entries(rateSources).forEach(([sourceName, sourceRates]) => {
-        if (sourceRates[upperCaseCurrency] && sourceRates[upperCaseCurrency] > 0) {
-          sourcesWithRate[sourceName] = sourceRates[upperCaseCurrency];
+        if (sourceRates[currencyCode] && sourceRates[currencyCode] > 0) {
+          sourcesWithRate[sourceName] = sourceRates[currencyCode];
         }
       });
 
       // If we have at least one source with a valid rate, use that
       if (Object.keys(sourcesWithRate).length > 0) {
-        console.log(`Found rates for ${upperCaseCurrency} in individual sources:`, sourcesWithRate);
+        console.log(
+          `Found rates for ${currencyCode.toUpperCase()} in individual sources:`,
+          sourcesWithRate
+        );
 
         // Calculate the average of available rates
         const rates = Object.values(sourcesWithRate);
@@ -196,13 +198,13 @@ const NostrEventsTable: React.FC = () => {
         // Return in format: {rate with premium} {currency code}/BTC
         const result = `${finalRate.toLocaleString(undefined, {
           maximumFractionDigits: 0,
-        })} ${upperCaseCurrency}/BTC`;
+        })} ${currencyCode.toLocaleUpperCase()}/BTC`;
         console.log(`Using calculated average from sources: ${result}`);
         return result;
       }
 
       // No rate available from any source, return null
-      console.log(`No exchange rate available for ${upperCaseCurrency} from any source`);
+      console.log(`No exchange rate available for ${currencyCode.toUpperCase()} from any source`);
       return null;
     } catch (error) {
       console.error('Error in calculateBtcPrice:', error);
@@ -361,16 +363,15 @@ const NostrEventsTable: React.FC = () => {
     if (events.length > 0) {
       console.log('Manually refreshing all prices...');
 
-      // Update prices for all events based on rates in rateSources
-      const updatedEvents = events.map(event => {
-        const newPrice = calculateBtcPrice(event.rawAmount, event.currencyCode, event.premium);
-        return {
-          ...event,
-          price: newPrice,
-        };
+      setEvents(events => {
+        return events.map(event => {
+          const newPrice = calculateBtcPrice(event.rawAmount, event.currencyCode, event.premium);
+          return {
+            ...event,
+            price: newPrice,
+          };
+        });
       });
-
-      setEvents(updatedEvents);
     }
   };
 
@@ -465,12 +466,6 @@ const NostrEventsTable: React.FC = () => {
 
       // Only clear error if we have at least one successful source
       setError(null);
-
-      // Immediately force a refresh of prices with the new rates
-      setTimeout(() => {
-        console.log('Forcing immediate price refresh after rate update');
-        refreshAllPrices();
-      }, 100);
     } else if (hasErrors) {
       setError(
         'Failed to fetch exchange rates from all sources. Price column may not display correctly.'
@@ -625,89 +620,92 @@ const NostrEventsTable: React.FC = () => {
     return quotes[randomIndex];
   };
 
+  const loadEvents = () => {
+    // Then fetch events
+    try {
+      const pool = new SimplePool();
+
+      // Connect to the specified relay plus random relays
+      const relays = [
+        'wss://nostr.satstralia.com',
+        'wss://relay.damus.io',
+        'wss://relay.snort.social',
+        'wss://nos.lol',
+        'wss://relay.current.fyi',
+      ];
+
+      // Define the filter for kind 38383 events
+      const filter: Filter = {
+        kinds: [38383],
+        '#s': ['pending'],
+      };
+
+      // Create an array to store all events
+      const allEvents: EventTableData[] = [];
+
+      // Subscribe to events
+      const subscription = pool.subscribeMany(relays, [filter], {
+        onevent(event: Event) {
+          // Check if the event's pubkey is in the allowed list
+          const allowedPubkeys = [
+            '7af6f7cfc3bfdf8aa65df2465aa7841096fa8ee6b2d4d14fc43d974e5db9ab96',
+            'c8dc40a80bbb41fe7430fca9d0451b37a2341486ab65f890955528e4732da34a',
+            'f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c',
+            '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191',
+            'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e',
+            'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2',
+          ];
+          const sourceTag = event.tags.find(tag => tag[0] === 'y') ?? [];
+
+          // Skip events whose pubkey is not in the allowed list
+          if (!allowedPubkeys.includes(event.pubkey) && sourceTag[1] !== 'mostrop2p') {
+            console.log(sourceTag);
+            return;
+          }
+
+          const processedEvent = processEvent(event);
+          if (processedEvent) {
+            allEvents.push(processedEvent);
+            // Sort by newest first
+            allEvents.sort((a, b) => b.created_at - a.created_at);
+            const sortedEvents = [...allEvents];
+            setEvents(sortedEvents);
+            setFilteredEvents(sortedEvents); // Initialize filtered events with all events
+            setTotalEvents(allEvents.length);
+          }
+        },
+        oneose() {
+          refreshAllPrices();
+          setLoading(false);
+          if (allEvents.length === 0) {
+            setError('No events found. Try again later.');
+          }
+        },
+      });
+
+      // Cleanup subscription when component unmounts
+      return () => {
+        subscription.close();
+        pool.close(relays);
+      };
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      setError('Failed to fetch events. Please check your connection and try again.');
+      setLoading(false);
+    }
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    setCurrentQuote(getRandomQuote());
+
+    // First, fetch exchange rates
+    fetchExchangeRates();
+  };
+
   // Main effect to coordinate data loading
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
-      setCurrentQuote(getRandomQuote());
-
-      // First, fetch exchange rates
-      await fetchExchangeRates();
-
-      // Then fetch events
-      try {
-        const pool = new SimplePool();
-
-        // Connect to the specified relay plus random relays
-        const relays = [
-          'wss://nostr.satstralia.com',
-          'wss://relay.damus.io',
-          'wss://relay.snort.social',
-          'wss://nos.lol',
-          'wss://relay.current.fyi',
-        ];
-
-        // Define the filter for kind 38383 events
-        const filter: Filter = {
-          kinds: [38383],
-          '#s': ['pending'],
-        };
-
-        // Create an array to store all events
-        const allEvents: EventTableData[] = [];
-
-        // Subscribe to events
-        const subscription = pool.subscribeMany(relays, [filter], {
-          onevent(event: Event) {
-            // Check if the event's pubkey is in the allowed list
-            const allowedPubkeys = [
-              '7af6f7cfc3bfdf8aa65df2465aa7841096fa8ee6b2d4d14fc43d974e5db9ab96',
-              'c8dc40a80bbb41fe7430fca9d0451b37a2341486ab65f890955528e4732da34a',
-              'f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c',
-              '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191',
-              'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e',
-              'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2',
-            ];
-            const sourceTag = event.tags.find(tag => tag[0] === 'y') ?? [];
-
-            // Skip events whose pubkey is not in the allowed list
-            if (!allowedPubkeys.includes(event.pubkey) && sourceTag[1] !== 'mostrop2p') {
-              console.log(sourceTag);
-              return;
-            }
-
-            const processedEvent = processEvent(event);
-            if (processedEvent) {
-              allEvents.push(processedEvent);
-              // Sort by newest first
-              allEvents.sort((a, b) => b.created_at - a.created_at);
-              const sortedEvents = [...allEvents];
-              setEvents(sortedEvents);
-              setFilteredEvents(sortedEvents); // Initialize filtered events with all events
-              setTotalEvents(allEvents.length);
-            }
-          },
-          oneose() {
-            setLoading(false);
-            if (allEvents.length === 0) {
-              setError('No events found. Try again later.');
-            }
-          },
-        });
-
-        // Cleanup subscription when component unmounts
-        return () => {
-          subscription.close();
-          pool.close(relays);
-        };
-      } catch (error) {
-        console.error('Error fetching events:', error);
-        setError('Failed to fetch events. Please check your connection and try again.');
-        setLoading(false);
-      }
-    };
-
     loadData();
 
     // Set up refresh interval for exchange rates
@@ -744,8 +742,10 @@ const NostrEventsTable: React.FC = () => {
         const chartData = prepareDepthChartData(updatedEvents);
         setDepthChartData(chartData);
       }
+    } else {
+      loadEvents();
     }
-  }, [exchangeRates, ratesLoading, rateSources]);
+  }, [exchangeRates, ratesLoading, rateSources, loading]);
 
   // Effect to filter events when filter states or events change
   useEffect(() => {
@@ -1131,7 +1131,7 @@ const NostrEventsTable: React.FC = () => {
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        minHeight: 'calc(100vh - 40px)',
+        minHeight: 'calc(100vh - 60px)',
         background: '#121212',
       }}
     >
@@ -1204,7 +1204,7 @@ const NostrEventsTable: React.FC = () => {
               padding: '50px',
               display: 'flex',
               flexDirection: 'column',
-              minHeight: 'calc(100vh - 190px)',
+              minHeight: 'calc(100vh - 200px)',
             }}
           >
             <Spin size="large" />
@@ -1401,7 +1401,12 @@ const NostrEventsTable: React.FC = () => {
                     onChange={handleCurrencyFilterChange}
                     value={currencyFilter}
                     options={getUniqueCurrencies().map(currency => {
-                      const flag = getCurrencyFlag(currency);
+                      let flag = '';
+                      try {
+                        flag = getCurrencyFlag(currency);
+                      } catch (error) {
+                        console.log(`No flag found for ${currency.toUpperCase()}`);
+                      }
                       return {
                         value: currency,
                         label: (
