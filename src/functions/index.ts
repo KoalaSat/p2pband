@@ -80,11 +80,6 @@ export const processEvent = (
 
       // Skip expired events
       if (!isNaN(expirationTimestamp) && expirationTimestamp < currentTimestamp) {
-        console.log(
-          `Skipping expired event ${event.id}, expired at: ${new Date(
-            expirationTimestamp * 1000
-          ).toISOString()}`
-        );
         return null;
       }
     }

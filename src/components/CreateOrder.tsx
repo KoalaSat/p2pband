@@ -134,7 +134,19 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
 
   const publishOrder = async (signedEvent: Event) => {
     try {
-      const publishRelays = [...relays, ...outboxRelays];
+      const publishRelays = [...relays, ...outboxRelays].reduce<string[]>(
+        (accumulator, current) => {
+          // Remove the last character if it's a '/'
+          const modifiedCurrent = current.endsWith('/') ? current.slice(0, -1) : current;
+
+          // Check if the modified current string is already in the accumulator
+          if (!accumulator.includes(modifiedCurrent)) {
+            accumulator.push(modifiedCurrent);
+          }
+          return accumulator;
+        },
+        []
+      );
 
       console.log('Publishing order to relays:', publishRelays);
 

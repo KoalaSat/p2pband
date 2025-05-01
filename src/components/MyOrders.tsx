@@ -93,7 +93,23 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
 
   const publishOrder = async (signedEvent: Event) => {
     try {
-      const publishRelays = [...relays, ...outboxRelays];
+      const publishRelays = [...relays, ...outboxRelays].reduce<string[]>(
+        (accumulator, current) => {
+          // Remove the last character if it's a '/'
+          const modifiedCurrent = current.endsWith('/') ? current.slice(0, -1) : current;
+
+          if (current.includes('127.0.0.1') || current.includes('localhost')) {
+            return accumulator;
+          }
+
+          // Check if the modified current string is already in the accumulator
+          if (!accumulator.includes(modifiedCurrent)) {
+            accumulator.push(modifiedCurrent);
+          }
+          return accumulator;
+        },
+        []
+      );
 
       console.log('Publishing order to relays:', publishRelays);
 

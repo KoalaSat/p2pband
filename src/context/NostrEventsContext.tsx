@@ -118,27 +118,29 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   useEffect(() => {
     if (pubkey) {
       try {
-        const pool = new SimplePool();
         console.log('Fetching user outbox relays from metadata...');
 
-        // First try to get the user's preferred write relays from their metadata
-        const userMetadataFilter = {
-          kinds: [10002], // kind 10002 is the relay list event
-          authors: [pubkey!],
-          limit: 1,
-        };
-
-        // Subscribe to events
-        pool.subscribeMany(relays, [userMetadataFilter], {
-          id: 'p2pBandOutbox',
-          onevent(event: Event) {
-            const rTags = event.tags
-              .filter(t => t[0] == 'r' && (t.length < 3 || t[2] === 'write'))
-              .map(t => t[1]);
-            console.log('Outbox relays:', rTags);
-            setOutboxRelays(rTags);
-          },
-        });
+        pool
+          .querySync(
+            relays,
+            {
+              kinds: [10002], // kind 10002 is the relay list event
+              authors: [pubkey!],
+              limit: 1,
+            },
+            {
+              id: 'p2pBandOutbox',
+            }
+          )
+          .then((events: Event[]) => {
+            if (events.length > 0) {
+              const rTags = events[0].tags
+                .filter(t => t[0] == 'r' && (t.length < 3 || t[2] === 'write'))
+                .map(t => t[1]);
+              console.log('Outbox relays:', rTags);
+              setOutboxRelays(rTags);
+            }
+          });
       } catch (error) {
         console.error('Error fetching outbox relays:', error);
       }

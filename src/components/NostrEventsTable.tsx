@@ -468,8 +468,6 @@ const NostrEventsTable: React.FC = () => {
       (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
       (!eventsLoading && Object.keys(events).length > 0)
     ) {
-      console.log('Updating prices for all events with new exchange rates...');
-
       const updatedEvents: EventTableData[] = [];
 
       events.forEach(event => {
