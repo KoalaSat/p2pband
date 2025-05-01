@@ -10,7 +10,9 @@ interface NostrEventsContextType {
   removeEvent: (dTag: string) => void;
   events: Event[];
   relays: string[];
+  webOfTrustKeys: string[];
   outboxRelays: string[];
+  wotLoading: boolean;
   eventsLoading: boolean;
   lastEvent: number;
   error: string | null;
@@ -28,6 +30,7 @@ interface NostrEventsProviderProps {
 // Create the provider component
 export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ children }) => {
   const [pubkey, setPubkey] = useState<string | null>(null);
+  const [webOfTrustKeys, setWebOfTrustKeys] = useState<string[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [relays] = useState<string[]>([
     'wss://nostr.satstralia.com',
@@ -35,6 +38,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     'wss://relay.snort.social',
     'wss://nos.lol',
   ]);
+  const [wotLoading, setWotLoading] = useState<boolean>(true);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
   const [lastEvent, setLastEvent] = useState<number>(0);
   const [outboxRelays, setOutboxRelays] = useState<string[]>([]);
@@ -106,6 +110,85 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     });
   };
 
+  const buildWebOfTrust = (outbox: string[]) => {
+    setWebOfTrustKeys(keys => {
+      return [pubkey!];
+    });
+
+    const publishRelays = [...relays, ...outbox].reduce<string[]>((accumulator, current) => {
+      // Remove the last character if it's a '/'
+      const modifiedCurrent = current.endsWith('/') ? current.slice(0, -1) : current;
+
+      // Check if the modified current string is already in the accumulator
+      if (!accumulator.includes(modifiedCurrent)) {
+        accumulator.push(modifiedCurrent);
+      }
+      return accumulator;
+    }, []);
+
+    const pool = new SimplePool();
+    pool
+      .querySync(
+        publishRelays,
+        {
+          kinds: [3],
+          authors: [pubkey!],
+          limit: 1,
+        },
+        {
+          id: 'p2pWebOfTrust1',
+        }
+      )
+      .then((events: Event[]) => {
+        if (events.length > 0) {
+          console.log('Found user follow list, buildint web of trust');
+          const followsEvent = events[0];
+          const pubKeys = followsEvent.tags.map(t => t[1]);
+
+          setWebOfTrustKeys(keys => {
+            pubKeys.forEach(t => {
+              if (!keys.includes(t[1])) keys.push(t[1]);
+            });
+            return keys;
+          });
+
+          const pool2 = new SimplePool();
+          let endedRelays = 0;
+          pool2.subscribeMany(
+            publishRelays,
+            [
+              {
+                kinds: [3],
+                authors: pubKeys,
+                limit: 1,
+              },
+            ],
+            {
+              id: 'p2pWebOfTrust2',
+              onevent(event: Event) {
+                setWebOfTrustKeys(keys => {
+                  event.tags.forEach(t => {
+                    if (!keys.includes(t[1])) keys.push(t[1]);
+                  });
+                  return keys;
+                });
+              },
+              oneose() {
+                endedRelays = endedRelays + 1;
+                console.log('Web of Trust size', webOfTrustKeys.length);
+                if (endedRelays === publishRelays.length) {
+                  setWotLoading(false);
+                  pool2.close(publishRelays);
+                }
+              },
+            }
+          );
+        } else {
+          setWotLoading(false);
+        }
+      });
+  };
+
   // Initial load of events
   useEffect(() => {
     const cleanup = loadEvents();
@@ -122,7 +205,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
           .querySync(
             relays,
             {
-              kinds: [10002], // kind 10002 is the relay list event
+              kinds: [10002],
               authors: [pubkey!],
               limit: 1,
             },
@@ -136,11 +219,14 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
                 .filter(t => t[0] == 'r' && (t.length < 3 || t[2] === 'write'))
                 .map(t => t[1]);
               console.log('Outbox relays:', rTags);
+
               setOutboxRelays(rTags);
+              buildWebOfTrust(rTags);
             }
           });
       } catch (error) {
         console.error('Error fetching outbox relays:', error);
+        buildWebOfTrust([]);
       }
     }
   }, [pubkey]);
@@ -150,9 +236,11 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     pubkey,
     setPubkey,
     removeEvent,
+    webOfTrustKeys,
     outboxRelays,
     events,
     relays,
+    wotLoading,
     eventsLoading,
     lastEvent,
     error,
