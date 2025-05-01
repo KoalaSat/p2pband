@@ -57,6 +57,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
   const [amountMin, setAmountMin] = useState<number | null>(null);
   const [amountMax, setAmountMax] = useState<number | null>(null);
   const [layers, setLayers] = useState<string[]>(['lightning']);
+  const [publishing, setPublishing] = useState<boolean>(false);
 
   // Combine all currencies (fiat and crypto) for the selector
   const allCurrencies = useMemo(() => {
@@ -73,7 +74,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
       console.error('PubKey not found');
       return;
     }
-
+    setPublishing(true);
     const formData = {
       orderType,
       premium,
@@ -151,6 +152,10 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
       console.log('Publishing order to relays:', publishRelays);
 
       const pool = new SimplePool();
+
+      setPublishing(false);
+      onClose();
+
       // Publish the event to all outbox relays
       const publishPromises = pool.publish(publishRelays, signedEvent);
 
@@ -165,8 +170,6 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
       } else {
         console.error('Failed to publish order to any relay');
       }
-
-      onClose();
       // Close the pool connection
       pool.close(publishRelays);
     } catch (error) {
@@ -715,6 +718,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
             onClick={onCreateorder}
             block
             disabled={!amount && paymentMethods !== ''}
+            loading={publishing}
           >
             {'// PUBLISH'}
           </Button>
