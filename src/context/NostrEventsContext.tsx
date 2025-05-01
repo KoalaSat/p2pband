@@ -36,6 +36,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       // Connect to the specified relay plus random relays
       const relays = [
         'wss://nostr.satstralia.com',
+        'wss://relay.mostro.network',
         'wss://relay.damus.io',
         'wss://relay.snort.social',
         'wss://nos.lol',
@@ -62,11 +63,12 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
             '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191',
             'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e',
             'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2',
+            '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390',
           ];
           const sourceTag = event.tags.find(tag => tag[0] === 'y') ?? [];
 
           // Skip events whose pubkey is not in the allowed list
-          if (!allowedPubkeys.includes(event.pubkey) && sourceTag[1] !== 'mostrop2p') {
+          if (!allowedPubkeys.includes(event.pubkey) && sourceTag[1] !== 'mostro') {
             console.log(sourceTag);
             return;
           }
