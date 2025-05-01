@@ -131,10 +131,9 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
         console.error('Failed to publish order to any relay');
       }
 
-      // Close the pool connection
-      pool.close([...relays, ...outboxRelays]);
-
       onClose();
+      // Close the pool connection
+      pool.close(publishRelays);
     } catch (error) {
       console.error('Error publishing order:', error);
     }

@@ -162,15 +162,13 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
 
       if (successfulPublishes.length > 0) {
         console.log(`Order published successfully to ${successfulPublishes.length} relays`);
-        onClose(); // Close the modal on success
       } else {
         console.error('Failed to publish order to any relay');
       }
 
-      // Close the pool connection
-      pool.close([...relays, ...outboxRelays]);
-
       onClose();
+      // Close the pool connection
+      pool.close(publishRelays);
     } catch (error) {
       console.error('Error publishing order:', error);
     }
