@@ -10,9 +10,8 @@ interface NostrEventsContextType {
   removeEvent: (dTag: string) => void;
   events: Event[];
   relays: string[];
-  webOfTrustKeys: string[];
+  webOfTrustKeys: string[] | null;
   outboxRelays: string[];
-  wotLoading: boolean;
   eventsLoading: boolean;
   lastEvent: number;
   error: string | null;
@@ -30,7 +29,7 @@ interface NostrEventsProviderProps {
 // Create the provider component
 export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ children }) => {
   const [pubkey, setPubkey] = useState<string | null>(null);
-  const [webOfTrustKeys, setWebOfTrustKeys] = useState<string[]>([]);
+  const [webOfTrustKeys, setWebOfTrustKeys] = useState<string[] | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [relays] = useState<string[]>([
     'wss://nostr.satstralia.com',
@@ -38,7 +37,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     'wss://relay.snort.social',
     'wss://nos.lol',
   ]);
-  const [wotLoading, setWotLoading] = useState<boolean>(true);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
   const [lastEvent, setLastEvent] = useState<number>(0);
   const [outboxRelays, setOutboxRelays] = useState<string[]>([]);
@@ -136,55 +134,23 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
           limit: 1,
         },
         {
-          id: 'p2pWebOfTrust1',
+          id: 'p2pWebOfTrust',
         }
       )
       .then((events: Event[]) => {
         if (events.length > 0) {
           console.log('Found user follow list, buildint web of trust');
-          const followsEvent = events[0];
-          const pubKeys = followsEvent.tags.map(t => t[1]);
-
-          setWebOfTrustKeys(keys => {
-            pubKeys.forEach(t => {
-              if (!keys.includes(t[1])) keys.push(t[1]);
-            });
-            return keys;
-          });
-
-          const pool2 = new SimplePool();
-          let endedRelays = 0;
-          pool2.subscribeMany(
-            publishRelays,
-            [
-              {
-                kinds: [3],
-                authors: pubKeys,
-                limit: 1,
-              },
-            ],
-            {
-              id: 'p2pWebOfTrust2',
-              onevent(event: Event) {
-                setWebOfTrustKeys(keys => {
-                  event.tags.forEach(t => {
-                    if (!keys.includes(t[1])) keys.push(t[1]);
-                  });
-                  return keys;
+          events.forEach(followsEvent => {
+            const pubKeys = followsEvent.tags.map(t => t[1]);
+            setWebOfTrustKeys(keys => {
+              if (keys) {
+                pubKeys.forEach(t => {
+                  if (!keys.includes(t)) keys.push(t);
                 });
-              },
-              oneose() {
-                endedRelays = endedRelays + 1;
-                console.log('Web of Trust size', webOfTrustKeys.length);
-                if (endedRelays === publishRelays.length) {
-                  setWotLoading(false);
-                  pool2.close(publishRelays);
-                }
-              },
-            }
-          );
-        } else {
-          setWotLoading(false);
+              }
+              return keys;
+            });
+          });
         }
       });
   };
@@ -240,7 +206,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     outboxRelays,
     events,
     relays,
-    wotLoading,
     eventsLoading,
     lastEvent,
     error,

@@ -89,7 +89,7 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
 };
 
 const NostrEventsTable: React.FC = () => {
-  const { events, eventsLoading, lastEvent, pubkey, webOfTrustKeys, wotLoading } = useNostrEvents();
+  const { events, eventsLoading, lastEvent, pubkey, webOfTrustKeys } = useNostrEvents();
   const [tableEvents, setTableEvents] = useState<EventTableData[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventTableData[]>([]);
   const [currentQuote, setCurrentQuote] = useState<{ quote: string; author: string } | null>(null);
@@ -322,7 +322,7 @@ const NostrEventsTable: React.FC = () => {
 
     // Apply source filter
     if (webOfTrust) {
-      result = result.filter(event => webOfTrustKeys.includes(event.pubkey));
+      result = result.filter(event => webOfTrustKeys?.includes(event.pubkey));
     }
 
     // Apply source filter
@@ -657,7 +657,7 @@ const NostrEventsTable: React.FC = () => {
                       borderRadius: '4px',
                       padding: '2px 25px',
                       backgroundColor: '#000',
-                      cursor: 'pointer',
+                      cursor: !webOfTrustKeys ? 'progress' : 'pointer',
                       position: 'relative',
                       overflow: 'hidden',
                       boxShadow: webOfTrust ? '0 0 10px rgba(65, 244, 244, 0.5)' : 'none',
@@ -680,17 +680,31 @@ const NostrEventsTable: React.FC = () => {
                       >
                         Web of Trust
                       </span>
-                      <span
-                        style={{
-                          width: '12px',
-                          height: '12px',
-                          marginLeft: 10,
-                          borderRadius: '50%',
-                          backgroundColor: webOfTrust ? '#3cf73c' : '#666',
-                          display: 'inline-block',
-                          boxShadow: webOfTrust ? '0 0 5px #3cf73c' : 'none',
-                        }}
-                      ></span>
+                      {!webOfTrustKeys || webOfTrustKeys.length < 2 ? (
+                        <Spin size="small" style={{ marginLeft: 10 }} />
+                      ) : (
+                        <>
+                          <span
+                            style={{
+                              marginLeft: 10,
+                              color: '#41f4f4',
+                            }}
+                          >
+                            {webOfTrustKeys.length}
+                          </span>
+                          <span
+                            style={{
+                              width: '12px',
+                              height: '12px',
+                              marginLeft: 10,
+                              borderRadius: '50%',
+                              backgroundColor: webOfTrust ? '#3cf73c' : '#666',
+                              display: 'inline-block',
+                              boxShadow: webOfTrust ? '0 0 5px #3cf73c' : 'none',
+                            }}
+                          ></span>
+                        </>
+                      )}
                     </div>
 
                     {/* Digital noise overlay for selected state */}
