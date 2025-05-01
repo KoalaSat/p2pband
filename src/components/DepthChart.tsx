@@ -13,7 +13,7 @@ interface DepthChartData {
 
 interface DepthChartProps {
   tableEvents: EventTableData[];
-  exchangeRates: Record<string, number>
+  exchangeRates: Record<string, number>;
 }
 
 const DepthChart = ({ tableEvents, exchangeRates }: DepthChartProps) => {
@@ -23,7 +23,7 @@ const DepthChart = ({ tableEvents, exchangeRates }: DepthChartProps) => {
     // Update depth chart data
     const chartData = prepareDepthChartData(tableEvents);
     setDepthChartData(chartData);
-  }, [tableEvents.length])
+  }, [tableEvents.length]);
 
   // Function to prepare data for the depth chart
   const prepareDepthChartData = (eventsData: EventTableData[]): DepthChartData[] => {
@@ -133,8 +133,7 @@ const DepthChart = ({ tableEvents, exchangeRates }: DepthChartProps) => {
 
   return (
     <div className="depth-chart-container" style={{ height: '400px' }}>
-      {depthChartData.length > 0 &&
-        depthChartData.some(series => series.data.length > 0) ? (
+      {depthChartData.length > 0 && depthChartData.some(series => series.data.length > 0) ? (
         <ResponsiveLine
           data={depthChartData}
           margin={{ top: 40, right: 40, bottom: 50, left: 60 }}
@@ -166,13 +165,9 @@ const DepthChart = ({ tableEvents, exchangeRates }: DepthChartProps) => {
           xScale={{
             type: 'linear',
             min:
-              Math.min(
-                ...depthChartData.flatMap(series => series.data.map(point => point.x))
-              ) - 1,
+              Math.min(...depthChartData.flatMap(series => series.data.map(point => point.x))) - 1,
             max:
-              Math.max(
-                ...depthChartData.flatMap(series => series.data.map(point => point.x))
-              ) + 1,
+              Math.max(...depthChartData.flatMap(series => series.data.map(point => point.x))) + 1,
           }}
           yScale={{ type: 'linear', min: 0, max: 'auto' }}
           axisTop={null}
@@ -185,8 +180,7 @@ const DepthChart = ({ tableEvents, exchangeRates }: DepthChartProps) => {
             legendOffset: 36,
             legendPosition: 'middle',
             tickValues: 5, // Limit the number of ticks
-            format: value =>
-              typeof value === 'number' ? `${value.toFixed(0)}%` : `${value}%`,
+            format: value => (typeof value === 'number' ? `${value.toFixed(0)}%` : `${value}%`),
           }}
           axisLeft={{
             tickSize: 5,
@@ -227,9 +221,7 @@ const DepthChart = ({ tableEvents, exchangeRates }: DepthChartProps) => {
                   boxShadow: '0 3px 6px rgba(0, 0, 0, 0.2)',
                 }}
               >
-                <div
-                  style={{ fontWeight: 'bold', marginBottom: '6px', color: '#1890ff' }}
-                >
+                <div style={{ fontWeight: 'bold', marginBottom: '6px', color: '#1890ff' }}>
                   Premium:{' '}
                   {typeof slice.points[0].data.x === 'number'
                     ? slice.points[0].data.x.toFixed(2)

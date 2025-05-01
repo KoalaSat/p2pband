@@ -16,9 +16,8 @@ interface NostrWindow extends Window {
 declare const window: NostrWindow;
 
 const NostrLogin: React.FC = () => {
-  const [pubkey, setPubkey] = useState<string | null>(null);
+  const { pubkey, setPubkey } = useNostrEvents();
   const [displayName, setDisplayName] = useState<string | null>(null);
-  const [nip05, setNip05] = useState<string | null>(null);
   const [nip05Verified, setNip05Verified] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [showCreateOrder, setShowCreateOrder] = useState<boolean>(false);
@@ -49,7 +48,7 @@ const NostrLogin: React.FC = () => {
       const events = await pool.querySync(relays, {
         kinds: [0],
         authors: [pk],
-        limit: 1
+        limit: 1,
       });
 
       if (events && events.length > 0) {
@@ -65,8 +64,6 @@ const NostrLogin: React.FC = () => {
 
           // Store and verify NIP-05 if available
           if (content.nip05) {
-            setNip05(content.nip05);
-            // Verify NIP-05
             verifyNip05(content.nip05, pk);
           } else {
             setNip05Verified(false);
@@ -200,10 +197,10 @@ const NostrLogin: React.FC = () => {
   }, []);
 
   const icon: () => React.ReactNode = () => {
-    if (nip05Verified) return <CheckCircleOutlined />
-    if (displayName) return <UserOutlined />
-    return <KeyOutlined />
-  }
+    if (nip05Verified) return <CheckCircleOutlined />;
+    if (displayName) return <UserOutlined />;
+    return <KeyOutlined />;
+  };
 
   return (
     <div
@@ -226,7 +223,7 @@ const NostrLogin: React.FC = () => {
                 style={{
                   color: '#1890ff',
                   marginLeft: '4px',
-                  fontSize: '14px'
+                  fontSize: '14px',
                 }}
               />
             )}
@@ -237,7 +234,7 @@ const NostrLogin: React.FC = () => {
             type="text"
             danger
             onClick={() => {
-              setShowCreateOrder(true)
+              setShowCreateOrder(true);
             }}
             style={{ marginLeft: '10px' }}
           >
@@ -251,7 +248,6 @@ const NostrLogin: React.FC = () => {
               clearPubkeyFromStorage();
               setPubkey(null);
               setDisplayName(null);
-              setNip05(null);
               setNip05Verified(false);
             }}
             style={{ marginLeft: '10px' }}

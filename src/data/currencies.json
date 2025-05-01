@@ -1,0 +1,231 @@
+{
+  "fiat": [
+    {
+      "code": "USD",
+      "name": "US Dollar",
+      "symbol": "$"
+    },
+    {
+      "code": "EUR",
+      "name": "Euro",
+      "symbol": "€"
+    },
+    {
+      "code": "GBP",
+      "name": "British Pound",
+      "symbol": "£"
+    },
+    {
+      "code": "JPY",
+      "name": "Japanese Yen",
+      "symbol": "¥"
+    },
+    {
+      "code": "CNY",
+      "name": "Chinese Yuan",
+      "symbol": "¥"
+    },
+    {
+      "code": "INR",
+      "name": "Indian Rupee",
+      "symbol": "₹"
+    },
+    {
+      "code": "AUD",
+      "name": "Australian Dollar",
+      "symbol": "$"
+    },
+    {
+      "code": "CAD",
+      "name": "Canadian Dollar",
+      "symbol": "$"
+    },
+    {
+      "code": "CHF",
+      "name": "Swiss Franc",
+      "symbol": "Fr"
+    },
+    {
+      "code": "HKD",
+      "name": "Hong Kong Dollar",
+      "symbol": "$"
+    },
+    {
+      "code": "SGD",
+      "name": "Singapore Dollar",
+      "symbol": "$"
+    },
+    {
+      "code": "SEK",
+      "name": "Swedish Krona",
+      "symbol": "kr"
+    },
+    {
+      "code": "NOK",
+      "name": "Norwegian Krone",
+      "symbol": "kr"
+    },
+    {
+      "code": "NZD",
+      "name": "New Zealand Dollar",
+      "symbol": "$"
+    },
+    {
+      "code": "MXN",
+      "name": "Mexican Peso",
+      "symbol": "$"
+    },
+    {
+      "code": "BRL",
+      "name": "Brazilian Real",
+      "symbol": "R$"
+    },
+    {
+      "code": "RUB",
+      "name": "Russian Ruble",
+      "symbol": "₽"
+    },
+    {
+      "code": "ZAR",
+      "name": "South African Rand",
+      "symbol": "R"
+    },
+    {
+      "code": "TRY",
+      "name": "Turkish Lira",
+      "symbol": "₺"
+    },
+    {
+      "code": "KRW",
+      "name": "South Korean Won",
+      "symbol": "₩"
+    },
+    {
+      "code": "ARS",
+      "name": "Argentine Peso",
+      "symbol": "$"
+    },
+    {
+      "code": "CLP",
+      "name": "Chilean Peso",
+      "symbol": "$"
+    },
+    {
+      "code": "COP",
+      "name": "Colombian Peso",
+      "symbol": "$"
+    },
+    {
+      "code": "PEN",
+      "name": "Peruvian Sol",
+      "symbol": "S/."
+    },
+    {
+      "code": "PLN",
+      "name": "Polish Złoty",
+      "symbol": "zł"
+    },
+    {
+      "code": "THB",
+      "name": "Thai Baht",
+      "symbol": "฿"
+    },
+    {
+      "code": "IDR",
+      "name": "Indonesian Rupiah",
+      "symbol": "Rp"
+    },
+    {
+      "code": "PHP",
+      "name": "Philippine Peso",
+      "symbol": "₱"
+    },
+    {
+      "code": "MYR",
+      "name": "Malaysian Ringgit",
+      "symbol": "RM"
+    },
+    {
+      "code": "VND",
+      "name": "Vietnamese Dong",
+      "symbol": "₫"
+    }
+  ],
+  "crypto": [
+    {
+      "code": "BTC",
+      "name": "Bitcoin",
+      "symbol": "₿"
+    },
+    {
+      "code": "ETH",
+      "name": "Ethereum",
+      "symbol": "Ξ"
+    },
+    {
+      "code": "XMR",
+      "name": "Monero",
+      "symbol": "ɱ"
+    },
+    {
+      "code": "LTC",
+      "name": "Litecoin",
+      "symbol": "Ł"
+    },
+    {
+      "code": "BCH",
+      "name": "Bitcoin Cash",
+      "symbol": "BCH"
+    },
+    {
+      "code": "XRP",
+      "name": "Ripple",
+      "symbol": "XRP"
+    },
+    {
+      "code": "DOGE",
+      "name": "Dogecoin",
+      "symbol": "Ð"
+    },
+    {
+      "code": "DASH",
+      "name": "Dash",
+      "symbol": "DASH"
+    },
+    {
+      "code": "ZEC",
+      "name": "Zcash",
+      "symbol": "ZEC"
+    },
+    {
+      "code": "DOT",
+      "name": "Polkadot",
+      "symbol": "DOT"
+    },
+    {
+      "code": "ADA",
+      "name": "Cardano",
+      "symbol": "ADA"
+    },
+    {
+      "code": "SOL",
+      "name": "Solana",
+      "symbol": "SOL"
+    },
+    {
+      "code": "AVAX",
+      "name": "Avalanche",
+      "symbol": "AVAX"
+    },
+    {
+      "code": "MATIC",
+      "name": "Polygon",
+      "symbol": "MATIC"
+    },
+    {
+      "code": "LINK",
+      "name": "Chainlink",
+      "symbol": "LINK"
+    }
+  ]
+}

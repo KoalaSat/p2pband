@@ -224,13 +224,13 @@ const NostrEventsTable: React.FC = () => {
   const fetchExchangeRates = async (): Promise<void> => {
     setRatesLoading(true);
 
-    const [newRates, rateSources] = await updateExchangeRates()
+    const [newRates, rateSources] = await updateExchangeRates();
 
     // Calculate average rates from all sources
     if (Object.keys(newRates).length > 0) {
       console.log('Final average rates:', newRates);
       setExchangeRates(newRates);
-      setRateSources(rateSources)
+      setRateSources(rateSources);
       setError(null);
     }
 
@@ -417,7 +417,7 @@ const NostrEventsTable: React.FC = () => {
       );
     });
   };
-  
+
   // Main effect to coordinate data loading
   useEffect(() => {
     loadData();
@@ -439,12 +439,12 @@ const NostrEventsTable: React.FC = () => {
     ) {
       console.log('Updating prices for all events with new exchange rates...');
 
-      const updatedEvents: EventTableData[] = []
+      const updatedEvents: EventTableData[] = [];
 
       events.forEach(event => {
-        const data = processEvent(event, exchangeRates)
-        if (data) updatedEvents.push(data)
-      })
+        const data = processEvent(event, exchangeRates);
+        if (data) updatedEvents.push(data);
+      });
 
       console.log('Updated events with new prices:', updatedEvents);
       setTableEvents(updatedEvents);
@@ -773,9 +773,7 @@ const NostrEventsTable: React.FC = () => {
                     borderRadius: '2px',
                     cursor: 'pointer',
                   }}
-                  disabled={
-                    !sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter
-                  }
+                  disabled={!sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter}
                 >
                   Clear All Filters
                 </button>
