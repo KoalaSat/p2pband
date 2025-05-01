@@ -86,13 +86,7 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
 
   const publishOrder = async (signedEvent: Event) => {
     try {
-      let publishRelays = outboxRelays;
-
-      // If no outbox relays found, fall back to the default relays
-      if (outboxRelays.length === 0) {
-        console.log('No user outbox relays found, using default relays:', relays);
-        publishRelays = [...relays];
-      }
+      const publishRelays = [...relays, ...outboxRelays];
 
       console.log('Publishing order to relays:', publishRelays);
 
