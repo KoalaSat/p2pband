@@ -321,7 +321,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                         fontWeight: 'bold',
                       }}
                     >
-                      {'>_'} FIXED AMOUNT
+                      {'>_'} FIXED
                     </span>
                     <span
                       style={{
@@ -602,7 +602,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                         fontWeight: 'bold',
                       }}
                     >
-                      {'>_'} ONCHAIN.NET
+                      {'>_'} ONCHAIN
                     </span>
                     <span
                       style={{

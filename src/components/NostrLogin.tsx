@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './NostrLogin.css';
 import { Button, Typography, Tag } from 'antd';
 import { Event } from 'nostr-tools/lib/types/core';
 import { KeyOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
@@ -200,22 +201,12 @@ const NostrLogin: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: '0 auto 20px auto',
-        padding: '10px',
-        maxWidth: '600px',
-      }}
-    >
+    <div style={{ paddingBottom: 25, padding: 5 }}>
       <CreateOrder visible={showCreateOrder} onClose={() => setShowCreateOrder(false)} />
       <MyOrders visible={showMyOrders} onClose={() => setShowMyOrders(false)} />
       {pubkey ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Tag color="success" icon={icon()}>
+        <div className="user-info-container">
+          <Tag color="success" icon={icon()} className="user-tag">
             {nip05Verified && (
               <CheckCircleOutlined
                 style={{
@@ -227,88 +218,62 @@ const NostrLogin: React.FC = () => {
             )}
             {name()}
           </Tag>
-          <Button
-            size="small"
-            type="text"
-            danger
-            onClick={() => {
-              setShowCreateOrder(true);
-            }}
-            style={{ marginLeft: '10px' }}
-          >
-            Create new order
-          </Button>
-          <Button
-            size="small"
-            type="text"
-            danger
-            onClick={() => {
-              setShowMyOrders(true);
-            }}
-            style={{ marginLeft: '10px' }}
-          >
-            My orders
-          </Button>
-          <Button
-            size="small"
-            type="text"
-            danger
-            onClick={() => {
-              clearPubkeyFromStorage();
-              setPubkey(null);
-              setDisplayName(null);
-              setNip05Verified(false);
-            }}
-            style={{ marginLeft: '10px' }}
-          >
-            Disconnect
-          </Button>
+          <div className="button-container">
+            <Button
+              size="small"
+              type="text"
+              danger
+              onClick={() => {
+                setShowCreateOrder(true);
+              }}
+              className="action-button"
+            >
+              Create new order
+            </Button>
+            <Button
+              size="small"
+              type="text"
+              danger
+              onClick={() => {
+                setShowMyOrders(true);
+              }}
+              className="action-button"
+            >
+              My orders
+            </Button>
+            <Button
+              size="small"
+              type="text"
+              danger
+              onClick={() => {
+                clearPubkeyFromStorage();
+                setPubkey(null);
+                setDisplayName(null);
+                setNip05Verified(false);
+              }}
+              className="action-button"
+            >
+              Disconnect
+            </Button>
+          </div>
         </div>
       ) : (
-        <>
+        <div className="login-container">
           <Button
             type="primary"
             onClick={handleLogin}
             loading={loading}
             icon={<KeyOutlined />}
-            style={{
-              background: '#0f0',
-              borderColor: '#0f0',
-              color: '#000',
-              fontWeight: 'bold',
-              boxShadow: '0 0 10px rgba(60, 247, 60, 0.5)',
-            }}
+            className="login-button"
           >
-            Connect with Nostr
+            Login with Nostr
           </Button>
           {error && (
-            <Typography.Text type="danger" style={{ marginTop: '10px' }}>
+            <Typography.Text type="danger" className="error-message">
               {error}
             </Typography.Text>
           )}
-          {!hasNostrExtension() && !error && (
-            <Typography.Text type="secondary" style={{ marginTop: '10px', fontSize: '0.8rem' }}>
-              No Nostr extension detected. Install{' '}
-              <a
-                href="https://getalby.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: '#0f0' }}
-              >
-                Alby
-              </a>{' '}
-              or{' '}
-              <a
-                href="https://github.com/fiatjaf/nos2x"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: '#0f0' }}
-              >
-                nos2x
-              </a>
-            </Typography.Text>
-          )}
-        </>
+        </div>
       )}
     </div>
   );
