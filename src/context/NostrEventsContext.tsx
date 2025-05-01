@@ -7,6 +7,7 @@ import { Filter } from 'nostr-tools/lib/types/filter';
 interface NostrEventsContextType {
   pubkey: string | null;
   setPubkey: (pubkey: string | null) => void;
+  pool: SimplePool;
   events: Event[];
   relays: string[];
   outboxRelays: string[];
@@ -28,6 +29,7 @@ interface NostrEventsProviderProps {
 export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ children }) => {
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
+  const [pool, setPool] = useState<SimplePool>(new SimplePool());
   const [relays] = useState<string[]>([
     'wss://nostr.satstralia.com',
     'wss://relay.damus.io',
@@ -47,6 +49,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
     try {
       const pool = new SimplePool();
+      setPool(pool);
 
       // Define the filter for kind 38383 events
       const filter: Filter = {
@@ -81,18 +84,11 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
         },
         oneose() {
           setEventsLoading(false);
-          setLastEvent(new Date().getUTCDate());
           if (allEvents.length === 0) {
             setError('No events found. Try again later.');
           }
         },
       });
-
-      // Return cleanup function
-      return () => {
-        subscription.close();
-        pool.close(relays);
-      };
     } catch (error) {
       console.error('Error fetching events:', error);
       setError('Failed to fetch events. Please check your connection and try again.');
@@ -120,7 +116,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
         };
 
         // Subscribe to events
-        const subscription = pool.subscribeMany(relays, [userMetadataFilter], {
+        pool.subscribeMany(relays, [userMetadataFilter], {
           id: 'p2pBandOutbox',
           onevent(event: Event) {
             const rTags = event.tags
@@ -130,12 +126,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
             setOutboxRelays(rTags);
           },
         });
-
-        // Return cleanup function
-        return () => {
-          subscription.close();
-          pool.close(relays);
-        };
       } catch (error) {
         console.error('Error fetching outbox relays:', error);
       }
@@ -147,6 +137,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     pubkey,
     setPubkey,
     outboxRelays,
+    pool,
     events,
     relays,
     eventsLoading,

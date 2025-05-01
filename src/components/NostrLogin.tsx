@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Typography, Tag, Space } from 'antd';
+import { Button, Typography, Tag } from 'antd';
+import { Event } from 'nostr-tools/lib/types/core';
 import { KeyOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNostrEvents } from '../context/NostrEventsContext';
-import { SimplePool } from 'nostr-tools';
 import CreateOrder from './CreateOrder';
 
 // Interface for NIP-07 window extension
@@ -16,7 +16,7 @@ interface NostrWindow extends Window {
 declare const window: NostrWindow;
 
 const NostrLogin: React.FC = () => {
-  const { pubkey, setPubkey } = useNostrEvents();
+  const { pubkey, setPubkey, pool } = useNostrEvents();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [nip05Verified, setNip05Verified] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -38,18 +38,16 @@ const NostrLogin: React.FC = () => {
   };
 
   // Fetch user metadata and verify NIP-05 identifier
-  const fetchUserMetadata = async (pk: string) => {
-    if (!pk) return;
+  const fetchUserMetadata = async () => {
+    if (!pubkey || displayName) return;
 
     try {
-      const pool = new SimplePool();
-
       // Query for kind 0 (metadata) events from the pubkey
       const events = await pool.querySync(
         relays,
         {
           kinds: [0],
-          authors: [pk],
+          authors: [pubkey],
           limit: 1,
         },
         {
@@ -59,35 +57,36 @@ const NostrLogin: React.FC = () => {
 
       if (events && events.length > 0) {
         try {
-          const content = JSON.parse(events[0].content);
+          const validEvent = events.find((e: Event) => e.content != '');
+          const content = JSON.parse(validEvent?.content ?? '{}');
 
           // Set display name from content.name
           if (content.name) {
             setDisplayName(content.name);
           } else {
-            setDisplayName(formatPubkey(pk));
+            setDisplayName(formatPubkey(pubkey));
           }
 
           // Store and verify NIP-05 if available
           if (content.nip05) {
-            verifyNip05(content.nip05, pk);
+            verifyNip05(content.nip05, pubkey);
           } else {
             setNip05Verified(false);
           }
         } catch (e) {
           console.error('Error parsing metadata content:', e);
-          setDisplayName(formatPubkey(pk));
+          setDisplayName(formatPubkey(pubkey));
         }
       } else {
         // No metadata found, use formatted pubkey
-        setDisplayName(formatPubkey(pk));
+        setDisplayName(formatPubkey(pubkey));
       }
 
       // Clean up
       pool.close(relays);
     } catch (err) {
       console.error('Error fetching metadata:', err);
-      setDisplayName(formatPubkey(pk));
+      setDisplayName(formatPubkey(pubkey));
     }
   };
 
@@ -143,8 +142,6 @@ const NostrLogin: React.FC = () => {
       setPubkey(pk);
       // Store the pubkey in localStorage for persistence
       savePubkeyToStorage(pk);
-      // Fetch user metadata and verify NIP-05
-      fetchUserMetadata(pk);
       setLoading(false);
     } catch (err) {
       console.error('Error getting public key:', err);
@@ -175,14 +172,17 @@ const NostrLogin: React.FC = () => {
       const storedPubkey = getPubkeyFromStorage();
       if (storedPubkey) {
         setPubkey(storedPubkey);
-        // Fetch user metadata and verify NIP-05 for stored pubkey
-        fetchUserMetadata(storedPubkey);
         return;
       }
     };
 
     checkExistingLogin();
   }, []);
+
+  // Check for existing pubkey on initial load
+  useEffect(() => {
+    if (pubkey) fetchUserMetadata();
+  }, [pubkey]);
 
   const icon: () => React.ReactNode = () => {
     if (nip05Verified) return <CheckCircleOutlined />;

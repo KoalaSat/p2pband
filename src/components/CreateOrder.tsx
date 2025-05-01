@@ -4,7 +4,7 @@ import currenciesData from '../data/currencies.json';
 import { useNostrEvents } from 'context/NostrEventsContext';
 import { v4 as uuidv4 } from 'uuid';
 import { Event } from 'nostr-tools/lib/types/core';
-import { nip19, SimplePool } from 'nostr-tools';
+import { nip19 } from 'nostr-tools';
 
 // Define the Nostr window interface for TypeScript
 declare global {
@@ -46,7 +46,7 @@ interface Currency {
 }
 
 const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
-  const { pubkey, relays, outboxRelays } = useNostrEvents();
+  const { pubkey, relays, outboxRelays, pool } = useNostrEvents();
   const [form] = Form.useForm<OrderFormData>();
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
   const [premium, setPremium] = useState<number>(0);
@@ -102,7 +102,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
         ['fa', amountType === 'fixed' ? amount?.toString() || '0' : amountMin?.toString() || '0'],
         ['pm', paymentMethods.toString()],
         ['premium', premium.toString()],
-        ['source', `nostr:${nip19.npubEncode(pubkey)}`],
+        ['source', `https://njump.me/:${nip19.npubEncode(pubkey)}`],
         ['network', 'mainnet'],
         ['layer', layers.join(',')],
         ['bond', '0'],
@@ -131,11 +131,9 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
       console.error('Error signing Nostr event:', error);
     }
   };
+
   const publishOrder = async (signedEvent: Event) => {
     try {
-      // Create a new pool for fetching metadata and publishing
-      const pool = new SimplePool();
-
       let publishRelays = outboxRelays;
 
       // If no outbox relays found, fall back to the default relays
@@ -527,7 +525,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
             name="patmentMethods"
           >
             <Input
-              onChange={value => setPaymentMethods(value as unknown as string)}
+              onChange={value => setPaymentMethods(value.target.value)}
               style={{
                 width: '100%',
                 backgroundColor: '#000',

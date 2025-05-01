@@ -418,51 +418,13 @@ const NostrEventsTable: React.FC = () => {
     });
   };
 
-  // Main effect to coordinate data loading
-  useEffect(() => {
-    loadData();
-
-    // Set up refresh interval for exchange rates
-    const interval = setInterval(async () => {
-      console.log('Refreshing exchange rates...');
-      await fetchExchangeRates();
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Effect to update prices when exchange rates change
-  useEffect(() => {
-    if (
-      (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
-      (!eventsLoading && Object.keys(events).length > 0)
-    ) {
-      console.log('Updating prices for all events with new exchange rates...');
-
-      const updatedEvents: EventTableData[] = [];
-
-      events.forEach(event => {
-        const data = processEvent(event, exchangeRates);
-        if (data) updatedEvents.push(data);
-      });
-
-      console.log('Updated events with new prices:', updatedEvents);
-      setTableEvents(updatedEvents);
-
-      // Update depth chart data
-      const chartData = prepareDepthChartData(updatedEvents);
-      setDepthChartData(chartData);
-    }
-  }, [exchangeRates, ratesLoading, eventsLoading, lastEvent]);
-
-  // Effect to filter events when filter states or events change
-  useEffect(() => {
-    if (tableEvents.length === 0) {
+  const calculateFilteredevents = (updatedEvents: EventTableData[]) => {
+    if (updatedEvents.length === 0) {
       setFilteredEvents([]);
       return;
     }
 
-    let result = [...tableEvents];
+    let result = [...updatedEvents];
 
     // Apply source filter
     if (sourceFilter) {
@@ -490,12 +452,44 @@ const NostrEventsTable: React.FC = () => {
 
     setFilteredEvents(result);
     setTotalEvents(result.length);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
 
-    // Update depth chart data based on filtered events
-    const chartData = prepareDepthChartData(result);
+    // Update depth chart data
+    const chartData = prepareDepthChartData(updatedEvents);
     setDepthChartData(chartData);
-  }, [tableEvents, sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, lastEvent]);
+  };
+
+  // Main effect to coordinate data loading
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Effect to update prices when exchange rates change
+  useEffect(() => {
+    if (
+      (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
+      (!eventsLoading && Object.keys(events).length > 0)
+    ) {
+      console.log('Updating prices for all events with new exchange rates...');
+
+      const updatedEvents: EventTableData[] = [];
+
+      events.forEach(event => {
+        const data = processEvent(event, exchangeRates);
+        if (data) updatedEvents.push(data);
+      });
+
+      console.log('Updated events with new prices:', updatedEvents);
+      setTableEvents(updatedEvents);
+
+      calculateFilteredevents(updatedEvents);
+    }
+  }, [events, exchangeRates, ratesLoading, eventsLoading, lastEvent]);
+
+  // Effect to filter events when filter states or events change
+  useEffect(() => {
+    calculateFilteredevents(tableEvents);
+  }, [sourceFilter, typeFilter, currencyFilter, paymentMethodFilter]);
 
   // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;
