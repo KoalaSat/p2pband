@@ -4,7 +4,7 @@ import currenciesData from '../data/currencies.json';
 import { useNostrEvents } from 'context/NostrEventsContext';
 import { v4 as uuidv4 } from 'uuid';
 import { Event } from 'nostr-tools/lib/types/core';
-import { nip19 } from 'nostr-tools';
+import { nip19, SimplePool } from 'nostr-tools';
 
 // Define the Nostr window interface for TypeScript
 declare global {
@@ -46,7 +46,7 @@ interface Currency {
 }
 
 const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
-  const { pubkey, relays, outboxRelays, pool } = useNostrEvents();
+  const { pubkey, relays, outboxRelays } = useNostrEvents();
   const [form] = Form.useForm<OrderFormData>();
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
   const [premium, setPremium] = useState<number>(0);
@@ -150,6 +150,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
 
       console.log('Publishing order to relays:', publishRelays);
 
+      const pool = new SimplePool();
       // Publish the event to all outbox relays
       const publishPromises = pool.publish(publishRelays, signedEvent);
 

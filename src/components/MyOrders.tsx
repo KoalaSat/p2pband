@@ -7,6 +7,7 @@ import { useNostrEvents } from 'context/NostrEventsContext';
 import Title from 'antd/es/typography/Title';
 import { processEvent } from 'functions';
 import { EventTableData } from './NostrEventsTable';
+import { SimplePool } from 'nostr-tools';
 
 // Define the Nostr window interface for TypeScript
 declare global {
@@ -28,7 +29,7 @@ interface MyOrdersProps {
 }
 
 const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
-  const { events, pubkey, outboxRelays, relays, pool, lastEvent, removeEvent } = useNostrEvents();
+  const { events, pubkey, outboxRelays, relays, lastEvent, removeEvent } = useNostrEvents();
 
   // Filter and process events that match the user's pubkey
   const myOrders = useMemo(() => {
@@ -113,6 +114,7 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
 
       console.log('Publishing order to relays:', publishRelays);
 
+      const pool = new SimplePool();
       // Publish the event to all outbox relays
       const publishPromises = pool.publish(publishRelays, signedEvent);
 

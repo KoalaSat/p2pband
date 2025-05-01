@@ -5,6 +5,7 @@ import { KeyOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icon
 import { useNostrEvents } from '../context/NostrEventsContext';
 import CreateOrder from './CreateOrder';
 import MyOrders from './MyOrders';
+import { SimplePool } from 'nostr-tools';
 
 // Interface for NIP-07 window extension
 interface NostrWindow extends Window {
@@ -17,7 +18,7 @@ interface NostrWindow extends Window {
 declare const window: NostrWindow;
 
 const NostrLogin: React.FC = () => {
-  const { pubkey, setPubkey, pool } = useNostrEvents();
+  const { pubkey, setPubkey } = useNostrEvents();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [nip05Verified, setNip05Verified] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -44,6 +45,7 @@ const NostrLogin: React.FC = () => {
     if (!pubkey || displayName) return;
 
     try {
+      const pool = new SimplePool();
       // Query for kind 0 (metadata) events from the pubkey
       const events = await pool.querySync(
         relays,

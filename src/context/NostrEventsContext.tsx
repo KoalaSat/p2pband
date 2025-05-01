@@ -8,7 +8,6 @@ interface NostrEventsContextType {
   pubkey: string | null;
   setPubkey: (pubkey: string | null) => void;
   removeEvent: (dTag: string) => void;
-  pool: SimplePool;
   events: Event[];
   relays: string[];
   outboxRelays: string[];
@@ -30,7 +29,6 @@ interface NostrEventsProviderProps {
 export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ children }) => {
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
-  const [pool, setPool] = useState<SimplePool>(new SimplePool());
   const [relays] = useState<string[]>([
     'wss://nostr.satstralia.com',
     'wss://relay.damus.io',
@@ -49,7 +47,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
     try {
       const pool = new SimplePool();
-      setPool(pool);
 
       // Define the filter for kind 38383 events
       const filter: Filter = {
@@ -120,6 +117,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       try {
         console.log('Fetching user outbox relays from metadata...');
 
+        const pool = new SimplePool();
         pool
           .querySync(
             relays,
@@ -153,7 +151,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     setPubkey,
     removeEvent,
     outboxRelays,
-    pool,
     events,
     relays,
     eventsLoading,
