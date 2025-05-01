@@ -161,6 +161,7 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
               }}
               actions={[
                 <Button
+                  key={order.id}
                   icon={<DeleteOutlined />}
                   danger
                   type="primary"
