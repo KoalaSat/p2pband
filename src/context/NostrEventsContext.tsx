@@ -6,9 +6,10 @@ import { Filter } from 'nostr-tools/lib/types/filter';
 // Define the context type
 interface NostrEventsContextType {
   pubkey: string | null;
-  setPubkey: (pubkey: string | null) => void
+  setPubkey: (pubkey: string | null) => void;
   events: Event[];
   relays: string[];
+  outboxRelays: string[];
   eventsLoading: boolean;
   lastEvent: number;
   error: string | null;
@@ -36,6 +37,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   ]);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
   const [lastEvent, setLastEvent] = useState<number>(0);
+  const [outboxRelays, setOutboxRelays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Function to load events from Nostr relays
@@ -57,6 +59,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
       // Subscribe to events
       const subscription = pool.subscribeMany(relays, [filter], {
+        id: 'p2pBandOrders',
         onevent(event: Event) {
           const premiumTag = event.tags.find(tag => tag[0] === 'premium') ?? [];
           const premium = premiumTag[1] ? parseInt(premiumTag[1], 10) : 100;
@@ -103,10 +106,47 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     return cleanup;
   }, []);
 
+  useEffect(() => {
+    if (pubkey) {
+      try {
+        const pool = new SimplePool();
+        console.log('Fetching user outbox relays from metadata...');
+
+        // First try to get the user's preferred write relays from their metadata
+        const userMetadataFilter = {
+          kinds: [10002], // kind 10002 is the relay list event
+          authors: [pubkey!],
+          limit: 1,
+        };
+
+        // Subscribe to events
+        const subscription = pool.subscribeMany(relays, [userMetadataFilter], {
+          id: 'p2pBandOutbox',
+          onevent(event: Event) {
+            const rTags = event.tags
+              .filter(t => t[0] == 'r' && (t.length < 3 || t[2] === 'write'))
+              .map(t => t[1]);
+            console.log('Outbox relays:', rTags);
+            setOutboxRelays(rTags);
+          },
+        });
+
+        // Return cleanup function
+        return () => {
+          subscription.close();
+          pool.close(relays);
+        };
+      } catch (error) {
+        console.error('Error fetching outbox relays:', error);
+      }
+    }
+  }, [pubkey]);
+
   // Create the context value object
   const contextValue: NostrEventsContextType = {
     pubkey,
     setPubkey,
+    outboxRelays,
     events,
     relays,
     eventsLoading,

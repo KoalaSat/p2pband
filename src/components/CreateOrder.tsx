@@ -4,7 +4,7 @@ import currenciesData from '../data/currencies.json';
 import { useNostrEvents } from 'context/NostrEventsContext';
 import { v4 as uuidv4 } from 'uuid';
 import { Event } from 'nostr-tools/lib/types/core';
-import { nip19 } from 'nostr-tools';
+import { nip19, SimplePool } from 'nostr-tools';
 
 // Define the Nostr window interface for TypeScript
 declare global {
@@ -46,7 +46,7 @@ interface Currency {
 }
 
 const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
-  const { pubkey } = useNostrEvents();
+  const { pubkey, relays, outboxRelays } = useNostrEvents();
   const [form] = Form.useForm<OrderFormData>();
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
   const [premium, setPremium] = useState<number>(0);
@@ -66,11 +66,11 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
   const onCreateorder = async () => {
     // Ensure at least one layer is selected
     if (layers.length === 0) {
-      console.error("You must select at least one layer (Onchain or Lightning)");
+      console.error('You must select at least one layer (Onchain or Lightning)');
       return;
     }
     if (!pubkey) {
-      console.error("PubKey not found");
+      console.error('PubKey not found');
       return;
     }
 
@@ -79,63 +79,97 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
       premium,
       currency,
       amountType,
-      ...(amountType === 'fixed'
-        ? { amount }
-        : { amountMin, amountMax }),
-      layers
+      ...(amountType === 'fixed' ? { amount } : { amountMin, amountMax }),
+      layers,
     };
     console.log('Order data:', formData);
-    
+
     // Create nostr event
     const now = Math.floor(Date.now() / 1000);
     const expirationTime = now + 86400; // 24h expiration time
-    
+
     // Build the nostr event
     const nostrEvent = {
-      "pubkey": pubkey,
-      "created_at": now,
-      "kind": 38383,
-      "tags": [
-        ["d", uuidv4()],
-        ["k", orderType],
-        ["f", currency],
-        ["s", "pending"],
-        ["amt", amountType === 'fixed' ? amount?.toString() || "0" : "0"],
-        ["fa", amountType === 'fixed' ? amount?.toString() || "0" : amountMin?.toString() || "0"],
-        ["pm", paymentMethods],
-        ["premium", premium.toString()],
-        ["source", `nostr:${nip19.npubEncode(pubkey)}`],
-        ["network", "mainnet"],
-        ["layer", layers.join(',')],
-        ["bond", "0"],
-        ["expiration", expirationTime.toString()],
-        ["y", "nostr"],
-        ["z", "order"]
+      pubkey: pubkey,
+      created_at: now,
+      kind: 38383,
+      tags: [
+        ['d', uuidv4()],
+        ['k', orderType],
+        ['f', currency],
+        ['s', 'pending'],
+        ['amt', amountType === 'fixed' ? amount?.toString() || '0' : '0'],
+        ['fa', amountType === 'fixed' ? amount?.toString() || '0' : amountMin?.toString() || '0'],
+        ['pm', paymentMethods.toString()],
+        ['premium', premium.toString()],
+        ['source', `nostr:${nip19.npubEncode(pubkey)}`],
+        ['network', 'mainnet'],
+        ['layer', layers.join(',')],
+        ['bond', '0'],
+        ['expiration', expirationTime.toString()],
+        ['y', 'nostr'],
+        ['z', 'order'],
       ],
-      "content": ""
+      content: '',
     };
-    
+
     try {
       // Check if window.nostr is available (browser extension)
       if (typeof window.nostr === 'undefined') {
-        console.error("Nostr extension not found. Please install a Nostr browser extension.");
+        console.error('Nostr extension not found. Please install a Nostr browser extension.');
         return;
       }
-      
+      console.log('Signing: ', nostrEvent);
+
       // Sign the event using window.nostr
       const signedEvent = await window.nostr.signEvent(nostrEvent);
-      
+
       // Log the signed event
-      console.log("Signed Nostr event:", signedEvent);
-      publishOrder(signedEvent)
+      console.log('Signed Nostr event:', signedEvent);
+      publishOrder(signedEvent);
     } catch (error) {
-      console.error("Error signing Nostr event:", error);
+      console.error('Error signing Nostr event:', error);
     }
   };
+  const publishOrder = async (signedEvent: Event) => {
+    try {
+      // Create a new pool for fetching metadata and publishing
+      const pool = new SimplePool();
 
-  const publishOrder = (signedEvent: Event) => {
+      let publishRelays = outboxRelays;
 
-  }
+      // If no outbox relays found, fall back to the default relays
+      if (outboxRelays.length === 0) {
+        console.log('No user outbox relays found, using default relays:', relays);
+        publishRelays = [...relays];
+      }
+
+      console.log('Publishing order to relays:', publishRelays);
+
+      // Publish the event to all outbox relays
+      const publishPromises = pool.publish(publishRelays, signedEvent);
+
+      // Wait for the results
+      const publishResults = await Promise.all(publishPromises);
+
+      // Check if the event was published successfully to at least one relay
+      const successfulPublishes = publishResults.filter((result: string) => result);
+
+      if (successfulPublishes.length > 0) {
+        console.log(`Order published successfully to ${successfulPublishes.length} relays`);
+        onClose(); // Close the modal on success
+      } else {
+        console.error('Failed to publish order to any relay');
+      }
+
+      // Close the pool connection
+      pool.close([...relays, ...outboxRelays]);
+
+      onClose();
+    } catch (error) {
+      console.error('Error publishing order:', error);
+    }
+  };
 
   return (
     <Modal
@@ -264,43 +298,52 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                     position: 'relative',
                     overflow: 'hidden',
                     boxShadow: amountType == 'fixed' ? '0 0 10px rgba(65, 244, 244, 0.5)' : 'none',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
                   }}
                 >
                   {/* Terminal Header */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{
-                      color: amountType == 'fixed' ? '#41f4f4' : '#666',
-                      fontWeight: 'bold'
-                    }}>
-                      {">_"} FIXED AMOUNT
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: amountType == 'fixed' ? '#41f4f4' : '#666',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {'>_'} FIXED AMOUNT
                     </span>
-                    <span style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      backgroundColor: amountType == 'fixed' ? '#3cf73c' : '#666',
-                      display: 'inline-block',
-                      boxShadow: amountType == 'fixed' ? '0 0 5px #3cf73c' : 'none'
-                    }}></span>
+                    <span
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: amountType == 'fixed' ? '#3cf73c' : '#666',
+                        display: 'inline-block',
+                        boxShadow: amountType == 'fixed' ? '0 0 5px #3cf73c' : 'none',
+                      }}
+                    ></span>
                   </div>
 
                   {/* Digital noise overlay for selected state */}
                   {amountType == 'fixed' && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundImage: 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
-                      opacity: 0.05,
-                      pointerEvents: 'none'
-                    }}></div>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage:
+                          'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
+                        opacity: 0.05,
+                        pointerEvents: 'none',
+                      }}
+                    ></div>
                   )}
                 </div>
               </Col>
@@ -316,47 +359,55 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                     position: 'relative',
                     overflow: 'hidden',
                     boxShadow: amountType == 'range' ? '0 0 10px rgba(65, 244, 244, 0.5)' : 'none',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
                   }}
                 >
                   {/* Terminal Header */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{
-                      color: amountType == 'range' ? '#41f4f4' : '#666',
-                      fontWeight: 'bold'
-                    }}>
-                      {">_"} RANGE
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: amountType == 'range' ? '#41f4f4' : '#666',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {'>_'} RANGE
                     </span>
-                    <span style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      backgroundColor: amountType == 'range' ? '#3cf73c' : '#666',
-                      display: 'inline-block',
-                      boxShadow: amountType == 'range' ? '0 0 5px #3cf73c' : 'none'
-                    }}></span>
+                    <span
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: amountType == 'range' ? '#3cf73c' : '#666',
+                        display: 'inline-block',
+                        boxShadow: amountType == 'range' ? '0 0 5px #3cf73c' : 'none',
+                      }}
+                    ></span>
                   </div>
 
                   {/* Digital noise overlay for selected state */}
                   {amountType == 'range' && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundImage: 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
-                      opacity: 0.05,
-                      pointerEvents: 'none'
-                    }}></div>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage:
+                          'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
+                        opacity: 0.05,
+                        pointerEvents: 'none',
+                      }}
+                    ></div>
                   )}
                 </div>
               </Col>
-
             </Row>
 
             {amountType === 'fixed' ? (
@@ -366,14 +417,14 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                     color: '#41f4f4',
                     fontFamily: 'Roboto Mono, Share Tech Mono, monospace',
                     fontSize: '12px',
-                    margin: '5px 0'
+                    margin: '5px 0',
                   }}
                 >
                   EXACT AMOUNT TO TRADE:
                 </Paragraph>
                 <InputNumber
                   min={0}
-                  onChange={(value) => setAmount(value)}
+                  onChange={value => setAmount(value)}
                   style={{
                     width: '100%',
                     backgroundColor: '#000',
@@ -391,7 +442,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                     color: '#41f4f4',
                     fontFamily: 'Roboto Mono, Share Tech Mono, monospace',
                     fontSize: '12px',
-                    margin: '5px 0'
+                    margin: '5px 0',
                   }}
                 >
                   AMOUNT RANGE TO TRADE:
@@ -400,7 +451,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                   <Col span={11}>
                     <InputNumber
                       min={0}
-                      onChange={(value) => setAmountMin(value)}
+                      onChange={value => setAmountMin(value)}
                       style={{
                         width: '100%',
                         backgroundColor: '#000',
@@ -410,13 +461,13 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                       placeholder="Min"
                     />
                   </Col>
-                  <Col span={2} style={{ textAlign: 'center'}}>
+                  <Col span={2} style={{ textAlign: 'center' }}>
                     to
                   </Col>
                   <Col span={11}>
                     <InputNumber
                       min={0}
-                      onChange={(value) => setAmountMax(value)}
+                      onChange={value => setAmountMax(value)}
                       style={{
                         width: '100%',
                         backgroundColor: '#000',
@@ -502,7 +553,6 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
             required
             tooltip="At least one layer must be selected"
           >
-
             <Row gutter={16}>
               {/* Onchain Terminal Panel */}
               <Col span={12}>
@@ -526,44 +576,55 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                     cursor: 'pointer',
                     position: 'relative',
                     overflow: 'hidden',
-                    boxShadow: layers.includes('onchain') ? '0 0 10px rgba(65, 244, 244, 0.5)' : 'none',
-                    transition: 'all 0.3s ease'
+                    boxShadow: layers.includes('onchain')
+                      ? '0 0 10px rgba(65, 244, 244, 0.5)'
+                      : 'none',
+                    transition: 'all 0.3s ease',
                   }}
                 >
                   {/* Terminal Header */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{
-                      color: layers.includes('onchain') ? '#41f4f4' : '#666',
-                      fontWeight: 'bold'
-                    }}>
-                      {">_"} ONCHAIN.NET
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: layers.includes('onchain') ? '#41f4f4' : '#666',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {'>_'} ONCHAIN.NET
                     </span>
-                    <span style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      backgroundColor: layers.includes('onchain') ? '#3cf73c' : '#666',
-                      display: 'inline-block',
-                      boxShadow: layers.includes('onchain') ? '0 0 5px #3cf73c' : 'none'
-                    }}></span>
+                    <span
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: layers.includes('onchain') ? '#3cf73c' : '#666',
+                        display: 'inline-block',
+                        boxShadow: layers.includes('onchain') ? '0 0 5px #3cf73c' : 'none',
+                      }}
+                    ></span>
                   </div>
 
                   {/* Digital noise overlay for selected state */}
                   {layers.includes('onchain') && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundImage: 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
-                      opacity: 0.05,
-                      pointerEvents: 'none'
-                    }}></div>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage:
+                          'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
+                        opacity: 0.05,
+                        pointerEvents: 'none',
+                      }}
+                    ></div>
                   )}
                 </div>
               </Col>
@@ -590,44 +651,55 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                     cursor: 'pointer',
                     position: 'relative',
                     overflow: 'hidden',
-                    boxShadow: layers.includes('lightning') ? '0 0 10px rgba(255, 236, 61, 0.5)' : 'none',
-                    transition: 'all 0.3s ease'
+                    boxShadow: layers.includes('lightning')
+                      ? '0 0 10px rgba(255, 236, 61, 0.5)'
+                      : 'none',
+                    transition: 'all 0.3s ease',
                   }}
                 >
                   {/* Terminal Header */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{
-                      color: layers.includes('lightning') ? '#ffec3d' : '#666',
-                      fontWeight: 'bold'
-                    }}>
-                      {">_"} LIGHTNING
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: layers.includes('lightning') ? '#ffec3d' : '#666',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {'>_'} LIGHTNING
                     </span>
-                    <span style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      backgroundColor: layers.includes('lightning') ? '#ffec3d' : '#666',
-                      display: 'inline-block',
-                      boxShadow: layers.includes('lightning') ? '0 0 5px #ffec3d' : 'none'
-                    }}></span>
+                    <span
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: layers.includes('lightning') ? '#ffec3d' : '#666',
+                        display: 'inline-block',
+                        boxShadow: layers.includes('lightning') ? '0 0 5px #ffec3d' : 'none',
+                      }}
+                    ></span>
                   </div>
 
                   {/* Digital noise overlay for selected state */}
                   {layers.includes('lightning') && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundImage: 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
-                      opacity: 0.05,
-                      pointerEvents: 'none'
-                    }}></div>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundImage:
+                          'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
+                        opacity: 0.05,
+                        pointerEvents: 'none',
+                      }}
+                    ></div>
                   )}
                 </div>
               </Col>
@@ -635,7 +707,12 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
           </Form.Item>
         </Form>
         <Space direction="vertical" style={{ width: '100%', marginTop: '20px' }}>
-          <Button type="primary" onClick={onCreateorder} block disabled={!amount && paymentMethods !== ''}>
+          <Button
+            type="primary"
+            onClick={onCreateorder}
+            block
+            disabled={!amount && paymentMethods !== ''}
+          >
             {'// PUBLISH'}
           </Button>
           <Button onClick={onClose} block>

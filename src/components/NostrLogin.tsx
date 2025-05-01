@@ -45,11 +45,17 @@ const NostrLogin: React.FC = () => {
       const pool = new SimplePool();
 
       // Query for kind 0 (metadata) events from the pubkey
-      const events = await pool.querySync(relays, {
-        kinds: [0],
-        authors: [pk],
-        limit: 1,
-      });
+      const events = await pool.querySync(
+        relays,
+        {
+          kinds: [0],
+          authors: [pk],
+          limit: 1,
+        },
+        {
+          id: 'p2pBandNip5',
+        }
+      );
 
       if (events && events.length > 0) {
         try {
@@ -172,24 +178,6 @@ const NostrLogin: React.FC = () => {
         // Fetch user metadata and verify NIP-05 for stored pubkey
         fetchUserMetadata(storedPubkey);
         return;
-      }
-
-      // If no stored pubkey, check if extension is available but don't prompt for permission
-      if (hasNostrExtension()) {
-        try {
-          // This will only succeed if the user has already authorized the site
-          // It won't show a permission prompt
-          const pk = await window.nostr!.getPublicKey();
-          if (pk) {
-            setPubkey(pk);
-            savePubkeyToStorage(pk);
-            // Fetch user metadata and verify NIP-05
-            fetchUserMetadata(pk);
-          }
-        } catch (err) {
-          // Silent fail - user hasn't authorized yet
-          console.log('No pre-authorized pubkey found');
-        }
       }
     };
 
