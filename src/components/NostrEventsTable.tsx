@@ -223,9 +223,9 @@ const NostrEventsTable: React.FC = () => {
   // Function to fetch exchange rates from multiple sources
   const fetchExchangeRates = async (): Promise<void> => {
     setRatesLoading(true);
-    
+
     const [newRates, rateSources] = await updateExchangeRates()
-    
+
     // Calculate average rates from all sources
     if (Object.keys(newRates).length > 0) {
       console.log('Final average rates:', newRates);
@@ -272,22 +272,22 @@ const NostrEventsTable: React.FC = () => {
       (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
       (!eventsLoading && Object.keys(events).length > 0)
     ) {
-        console.log('Updating prices for all events with new exchange rates...');
+      console.log('Updating prices for all events with new exchange rates...');
 
-        const updatedEvents: EventTableData[] = []
-        
-        events.forEach(event => {
-          const data =  processEvent(event, exchangeRates)
-          if (data) updatedEvents.push(data)
-        })
+      const updatedEvents: EventTableData[] = []
 
-        console.log('Updated events with new prices:', updatedEvents);
-        setTableEvents(updatedEvents);
+      events.forEach(event => {
+        const data = processEvent(event, exchangeRates)
+        if (data) updatedEvents.push(data)
+      })
 
-        // Update depth chart data
-        const chartData = prepareDepthChartData(updatedEvents);
-        setDepthChartData(chartData);
-      }
+      console.log('Updated events with new prices:', updatedEvents);
+      setTableEvents(updatedEvents);
+
+      // Update depth chart data
+      const chartData = prepareDepthChartData(updatedEvents);
+      setDepthChartData(chartData);
+    }
   }, [exchangeRates, ratesLoading, eventsLoading]);
 
   // Effect to filter events when filter states or events change
@@ -666,247 +666,187 @@ const NostrEventsTable: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        padding: '0px 0px 20px 0px',
-        width: '100%',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 'calc(100vh - 60px)',
-        background: '#121212',
-      }}
-    >
-      <div
-        style={{
-          marginBottom: '20px',
-          textAlign: 'center',
-          fontFamily: '"Courier New", monospace',
-          letterSpacing: '2px',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <h1
+    <div style={{ padding: '0px 10px' }}>
+      {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
+
+      <OnionAddressWarning
+        visible={onionModalVisible}
+        onClose={handleCloseModal}
+        onGo={handleGoAnyway}
+        onCopyClink={onCopyClink}
+        onGoClearnet={onGoClearnet}
+        onDownloadTor={handleDownloadTor}
+        address={currentOnionAddress}
+      />
+
+      {ratesLoading ? (
+        <div
           style={{
-            color: '#0f0',
-            textShadow: '0 0 5px #0f0, 0 0 10px #0f0',
-            margin: '0 0 10px 0',
-            fontSize: '2.5rem',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            borderBottom: '2px solid #0f0',
-            padding: '10px',
-            position: 'relative',
+            textAlign: 'center',
+            padding: '50px',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 'calc(100vh - 200px)',
           }}
         >
-          P2P ₿AND
-          <span
+          <Spin size="large" />
+          {currentQuote && (
+            <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
+              <p style={{ fontStyle: 'italic' }}>&quot;{currentQuote.quote}&quot;</p>
+              <p style={{ fontWeight: 'bold' }}>— {currentQuote.author}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Depth Chart */}
+          <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
+            <DepthChart tableEvents={filteredEvents} exchangeRates={exchangeRates} />
+            <Title level={4} style={{ margin: '20px 0 0 0', minWidth: '120px' }}>
+              {`${totalEvents}`} Total Orders
+            </Title>
+          </Card>
+
+          {/* Filter UI */}
+          <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
+            <div
+              className="filter-container"
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
+            >
+              <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
+                Filter Options:
+              </Title>
+              <Space wrap style={{ flex: 1 }}>
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Source"
+                  allowClear
+                  onChange={handleSourceFilterChange}
+                  value={sourceFilter}
+                  options={getUniqueSources().map(source => ({ value: source, label: source }))}
+                />
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Type"
+                  allowClear
+                  onChange={handleTypeFilterChange}
+                  value={typeFilter}
+                  options={getUniqueTypes().map(type => ({ value: type, label: type }))}
+                />
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Currency"
+                  allowClear
+                  onChange={handleCurrencyFilterChange}
+                  value={currencyFilter}
+                  options={getUniqueCurrencies().map(currency => {
+                    let flag = '';
+                    try {
+                      flag = getCurrencyFlag(currency);
+                    } catch (error) {
+                      console.log(`No flag found for ${currency.toUpperCase()}`);
+                    }
+                    return {
+                      value: currency,
+                      label: (
+                        <span>
+                          {currency} {flag}
+                        </span>
+                      ),
+                    };
+                  })}
+                />
+                <Input
+                  style={{ width: 200 }}
+                  placeholder="Payment Method"
+                  value={paymentMethodFilter}
+                  onChange={handlePaymentMethodFilterChange}
+                  allowClear
+                />
+                <button
+                  onClick={clearFilters}
+                  style={{
+                    background: '#222',
+                    border: '1px solid #444',
+                    color: '#fff',
+                    padding: '5px 12px',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                  }}
+                  disabled={
+                    !sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter
+                  }
+                >
+                  Clear All Filters
+                </button>
+              </Space>
+            </div>
+          </Card>
+
+          <Table
+            dataSource={currentData}
+            columns={columns}
+            rowKey="id"
+            pagination={false}
+            bordered
+            style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}
+            onChange={handleTableChange}
+            sortDirections={['ascend', 'descend']}
+          />
+
+          <Pagination
+            responsive
+            current={currentPage}
+            pageSize={pageSize}
+            total={totalEvents}
+            onChange={handlePageChange}
+            showSizeChanger={false}
+            showLessItems={false}
+            size="default"
             style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(90deg, transparent 0%, #0f02 20%, transparent 40%)',
-              animation: 'scan 2s ease-in-out infinite',
-              pointerEvents: 'none',
+              width: '100%',
+              textAlign: 'center',
+              marginBottom: '20px',
             }}
           />
-        </h1>
-        <style>
-          {`
-            @keyframes scan {
-              0% { transform: translateX(-100%); }
-              100% { transform: translateX(100%); }
-            }
-          `}
-        </style>
-        <p style={{ color: '#0f0', fontSize: '0.9rem', margin: 0 }}>
-          P2P Bitcoin exchanges decentralized aggregator
-        </p>
-      </div>
-      <div style={{ padding: '0px 10px' }}>
-        {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
+        </>
+      )}
 
-        <OnionAddressWarning
-          visible={onionModalVisible}
-          onClose={handleCloseModal}
-          onGo={handleGoAnyway}
-          onCopyClink={onCopyClink}
-          onGoClearnet={onGoClearnet}
-          onDownloadTor={handleDownloadTor}
-          address={currentOnionAddress}
-        />
-
-        {ratesLoading ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '50px',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: 'calc(100vh - 200px)',
-            }}
-          >
-            <Spin size="large" />
-            {currentQuote && (
-              <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
-                <p style={{ fontStyle: 'italic' }}>&quot;{currentQuote.quote}&quot;</p>
-                <p style={{ fontWeight: 'bold' }}>— {currentQuote.author}</p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Depth Chart */}
-            <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-              <DepthChart tableEvents={filteredEvents} exchangeRates={exchangeRates} />
-              <Title level={4} style={{ margin: '20px 0 0 0', minWidth: '120px' }}>
-                {`${totalEvents}`} Total Orders
-              </Title>
-            </Card>
-
-            {/* Filter UI */}
-            <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-              <div
-                className="filter-container"
-                style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
-              >
-                <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
-                  Filter Options:
-                </Title>
-                <Space wrap style={{ flex: 1 }}>
-                  <Select
-                    style={{ width: 180 }}
-                    placeholder="Source"
-                    allowClear
-                    onChange={handleSourceFilterChange}
-                    value={sourceFilter}
-                    options={getUniqueSources().map(source => ({ value: source, label: source }))}
-                  />
-                  <Select
-                    style={{ width: 180 }}
-                    placeholder="Type"
-                    allowClear
-                    onChange={handleTypeFilterChange}
-                    value={typeFilter}
-                    options={getUniqueTypes().map(type => ({ value: type, label: type }))}
-                  />
-                  <Select
-                    style={{ width: 180 }}
-                    placeholder="Currency"
-                    allowClear
-                    onChange={handleCurrencyFilterChange}
-                    value={currencyFilter}
-                    options={getUniqueCurrencies().map(currency => {
-                      let flag = '';
-                      try {
-                        flag = getCurrencyFlag(currency);
-                      } catch (error) {
-                        console.log(`No flag found for ${currency.toUpperCase()}`);
-                      }
-                      return {
-                        value: currency,
-                        label: (
-                          <span>
-                            {currency} {flag}
-                          </span>
-                        ),
-                      };
-                    })}
-                  />
-                  <Input
-                    style={{ width: 200 }}
-                    placeholder="Payment Method"
-                    value={paymentMethodFilter}
-                    onChange={handlePaymentMethodFilterChange}
-                    allowClear
-                  />
-                  <button
-                    onClick={clearFilters}
-                    style={{
-                      background: '#222',
-                      border: '1px solid #444',
-                      color: '#fff',
-                      padding: '5px 12px',
-                      borderRadius: '2px',
-                      cursor: 'pointer',
-                    }}
-                    disabled={
-                      !sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter
-                    }
-                  >
-                    Clear All Filters
-                  </button>
-                </Space>
-              </div>
-            </Card>
-
-            <Table
-              dataSource={currentData}
-              columns={columns}
-              rowKey="id"
-              pagination={false}
-              bordered
-              style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}
-              onChange={handleTableChange}
-              sortDirections={['ascend', 'descend']}
-            />
-
-            <Pagination
-              responsive
-              current={currentPage}
-              pageSize={pageSize}
-              total={totalEvents}
-              onChange={handlePageChange}
-              showSizeChanger={false}
-              showLessItems={false}
-              size="default"
-              style={{
-                width: '100%',
-                textAlign: 'center',
-                marginBottom: '20px',
-              }}
-            />
-          </>
-        )}
-
-        <div
-          className="footer-container"
-          style={{
-            marginTop: 'auto',
-            padding: '10px 0',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          <div>
-            {!ratesLoading && Object.keys(rateSources).length > 0 && (
-              <small style={{ color: '#666' }}>
-                Exchange rates: Average from {getRateSourcesList()}
-              </small>
-            )}
-          </div>
-          <div>
+      <div
+        className="footer-container"
+        style={{
+          marginTop: 'auto',
+          padding: '10px 0',
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '10px',
+        }}
+      >
+        <div>
+          {!ratesLoading && Object.keys(rateSources).length > 0 && (
             <small style={{ color: '#666' }}>
-              {'Vibe coded with 🐨 by'}
-              <a
-                href="https://njump.me/npub1v3tgrwwsv7c6xckyhm5dmluc05jxd4yeqhpxew87chn0kua0tjzqc6yvjh"
-                target="_blank"
-                style={{ marginLeft: 4 }}
-                rel="noreferrer"
-              >
-                KoalaSat
-              </a>
+              Exchange rates: Average from {getRateSourcesList()}
             </small>
-          </div>
+          )}
         </div>
-        <style>
-          {`
+        <div>
+          <small style={{ color: '#666' }}>
+            {'Vibe coded with 🐨 by'}
+            <a
+              href="https://njump.me/npub1v3tgrwwsv7c6xckyhm5dmluc05jxd4yeqhpxew87chn0kua0tjzqc6yvjh"
+              target="_blank"
+              style={{ marginLeft: 4 }}
+              rel="noreferrer"
+            >
+              KoalaSat
+            </a>
+          </small>
+        </div>
+      </div>
+      <style>
+        {`
             @media (max-width: 768px) {
               .footer-container {
                 flex-direction: column;
@@ -914,8 +854,7 @@ const NostrEventsTable: React.FC = () => {
               }
             }
           `}
-        </style>
-      </div>
+      </style>
     </div>
   );
 };
