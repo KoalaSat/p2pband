@@ -2,6 +2,7 @@ import React from 'react';
 import './App.css';
 import NostrEventsTable from './components/NostrEventsTable';
 import { ConfigProvider, theme } from 'antd';
+import { NostrEventsProvider } from './context/NostrEventsContext';
 
 function App() {
   return (
@@ -16,9 +17,11 @@ function App() {
         },
       }}
     >
-      <div className="App">
-        <NostrEventsTable />
-      </div>
+      <NostrEventsProvider>
+        <div className="App">
+          <NostrEventsTable />
+        </div>
+      </NostrEventsProvider>
     </ConfigProvider>
   );
 }
