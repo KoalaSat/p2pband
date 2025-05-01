@@ -65,16 +65,23 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
     const event = events.find(e => e.id === orderId);
 
     if (event) {
-      const { id, sig, ...unsignedEvent } = event;
+      const { id, sig, created_at, ...unsignedEvent } = event;
 
+      const now = Math.floor(Date.now() / 1000);
       const tags = unsignedEvent.tags.filter(t => t[0] !== 's');
       const dTag = tags.find(tag => tag[0] === 'd');
       tags.push(['s', 'success']);
 
-      unsignedEvent.tags = tags;
+      const nostrEvent = {
+        pubkey: pubkey,
+        created_at: now,
+        kind: 38383,
+        tags,
+        content: '',
+      };
 
       // Sign the event using window.nostr
-      window.nostr.signEvent(unsignedEvent).then(signedEvent => {
+      window.nostr.signEvent(nostrEvent).then(signedEvent => {
         // Log the signed event
         console.log('Signed Nostr event:', signedEvent);
 

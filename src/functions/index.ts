@@ -167,8 +167,6 @@ export const processEvent = (
       paymentMethods: paymentMethodsTag ? paymentMethodsTag.slice(1).join(' ') : '-',
     };
 
-    if (eventData.source === 'robosats') console.log(paymentMethodsTag);
-
     try {
       // Calculate BTC price if we have both a currency code and an amount
       if (rawAmount !== null && currencyCode) {
