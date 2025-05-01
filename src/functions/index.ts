@@ -25,7 +25,6 @@ export const calculateAverage = (values: number[]): number => {
 export const calculateAverageRates = (
   sources: Record<string, Record<string, number>>
 ): Record<string, number> => {
-  console.log('Calculating average rates from sources:', sources);
   const averageRates: Record<string, number> = {};
   const allCurrencies = new Set<string>();
 
@@ -50,9 +49,6 @@ export const calculateAverageRates = (
     // Calculate average rate if we have any rates
     if (rates.length > 0) {
       averageRates[currency] = calculateAverage(rates);
-      console.log(
-        `Average rate for ${currency}: ${averageRates[currency]} from values: ${rates.join(', ')}`
-      );
     }
   });
 
@@ -110,9 +106,6 @@ export const processEvent = (
     // Get currency code from the 'f' tag if it exists
     let currencyCode = currencyTag && currencyTag.length > 1 ? currencyTag[1] : null;
 
-    // Debug log to see what currency codes we're getting
-    console.log(`Found currencyCode in event: ${currencyCode}`);
-
     // Handle case insensitivity and common currency code variants
     if (currencyCode) {
       currencyCode = currencyCode.toUpperCase();
@@ -149,14 +142,12 @@ export const processEvent = (
       if (amountTag.length === 2) {
         formattedAmount = formatAmount(amountTag[1]);
         rawAmount = parseFloat(amountTag[1]);
-        console.log(`Single amount: ${rawAmount} ${currencyCode}`);
       } else if (amountTag.length >= 3) {
         formattedAmount = `${formatAmount(amountTag[amountTag.length - 2])} - ${formatAmount(
           amountTag[amountTag.length - 1]
         )}`;
         // For ranges, use the maximum amount
         rawAmount = parseFloat(amountTag[amountTag.length - 1]);
-        console.log(`Range amount, using max: ${rawAmount} ${currencyCode}`);
       }
     }
 
@@ -208,8 +199,6 @@ export const calculateBtcPrice = (
   exchangeRates: Record<string, number>
 ): string | null => {
   try {
-    console.log('calculateBtcPrice: Starting with', { amount, currencyCode, premium });
-
     if (!amount) {
       console.log('calculateBtcPrice: No amount provided');
       return null;
@@ -230,19 +219,15 @@ export const calculateBtcPrice = (
       if (premium) {
         const premiumPercent = parseFloat(premium) / 100;
         finalRate = baseRate * (1 + premiumPercent);
-        console.log(`Applying premium of ${premium} %: ${baseRate} → ${finalRate}`);
       }
 
       // Return in format: {rate with premium} {currency code}/BTC
       const result = `${finalRate.toLocaleString(undefined, {
         maximumFractionDigits: 0,
       })} ${currencyCode.toUpperCase()}/BTC`;
-      console.log(`calculateBtcPrice: Calculated price using main rates: ${result}`);
       return result;
     }
 
-    // No rate available from any source, return null
-    console.log(`No exchange rate available for ${currencyCode.toUpperCase()} from any source`);
     return null;
   } catch (error) {
     console.error('Error in calculateBtcPrice:', error);

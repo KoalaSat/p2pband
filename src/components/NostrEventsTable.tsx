@@ -83,7 +83,6 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
       .map((char: string) => String.fromCodePoint(baseCharCode + char.charCodeAt(0) - 65))
       .join('');
   } catch (error) {
-    console.error(`Error getting flag for currency ${currencyCode}:`, error);
     return '';
   }
 };
@@ -228,7 +227,6 @@ const NostrEventsTable: React.FC = () => {
 
     // Calculate average rates from all sources
     if (Object.keys(newRates).length > 0) {
-      console.log('Final average rates:', newRates);
       setExchangeRates(newRates);
       setRateSources(rateSources);
       setError(null);
@@ -479,7 +477,6 @@ const NostrEventsTable: React.FC = () => {
         if (data) updatedEvents.push(data);
       });
 
-      console.log('Updated events with new prices:', updatedEvents);
       setTableEvents(updatedEvents);
 
       calculateFilteredevents(updatedEvents);

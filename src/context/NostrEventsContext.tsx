@@ -7,6 +7,7 @@ import { Filter } from 'nostr-tools/lib/types/filter';
 interface NostrEventsContextType {
   pubkey: string | null;
   setPubkey: (pubkey: string | null) => void;
+  removeEvent: (dTag: string) => void;
   pool: SimplePool;
   events: Event[];
   relays: string[];
@@ -35,7 +36,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     'wss://relay.damus.io',
     'wss://relay.snort.social',
     'wss://nos.lol',
-    'wss://relay.current.fyi',
   ]);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
   const [lastEvent, setLastEvent] = useState<number>(0);
@@ -61,7 +61,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       const allEvents: Event[] = [];
 
       // Subscribe to events
-      const subscription = pool.subscribeMany(relays, [filter], {
+      pool.subscribeMany(relays, [filter], {
         id: 'p2pBandOrders',
         onevent(event: Event) {
           const premiumTag = event.tags.find(tag => tag[0] === 'premium') ?? [];
@@ -71,6 +71,8 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
           if (premium > 40 || premium < -40) {
             return;
           }
+
+          if (!eventsLoading) removeEvent(event.id);
 
           // Add the event to our collection
           allEvents.push(event);
@@ -94,6 +96,17 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       setError('Failed to fetch events. Please check your connection and try again.');
       setEventsLoading(false);
     }
+  };
+
+  const removeEvent = (dTag: string) => {
+    setEvents(events => {
+      setLastEvent(new Date().getUTCDate());
+      return events.filter(e => {
+        const tag = e.tags.find(tag => tag[0] === 'd');
+        if (!tag?.[1]) return true;
+        return dTag !== tag[1];
+      });
+    });
   };
 
   // Initial load of events
@@ -136,6 +149,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   const contextValue: NostrEventsContextType = {
     pubkey,
     setPubkey,
+    removeEvent,
     outboxRelays,
     pool,
     events,

@@ -4,6 +4,7 @@ import { Event } from 'nostr-tools/lib/types/core';
 import { KeyOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNostrEvents } from '../context/NostrEventsContext';
 import CreateOrder from './CreateOrder';
+import MyOrders from './MyOrders';
 
 // Interface for NIP-07 window extension
 interface NostrWindow extends Window {
@@ -21,6 +22,7 @@ const NostrLogin: React.FC = () => {
   const [nip05Verified, setNip05Verified] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [showCreateOrder, setShowCreateOrder] = useState<boolean>(false);
+  const [showMyOrders, setShowMyOrders] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Use the pool and relays from NostrEventsContext
@@ -190,6 +192,11 @@ const NostrLogin: React.FC = () => {
     return <KeyOutlined />;
   };
 
+  const name: () => React.ReactNode = () => {
+    if (!pubkey) return '';
+    return displayName || formatPubkey(pubkey);
+  };
+
   return (
     <div
       style={{
@@ -203,6 +210,7 @@ const NostrLogin: React.FC = () => {
       }}
     >
       <CreateOrder visible={showCreateOrder} onClose={() => setShowCreateOrder(false)} />
+      <MyOrders visible={showMyOrders} onClose={() => setShowMyOrders(false)} />
       {pubkey ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Tag color="success" icon={icon()}>
@@ -215,7 +223,7 @@ const NostrLogin: React.FC = () => {
                 }}
               />
             )}
-            {displayName || formatPubkey(pubkey)}
+            {name()}
           </Tag>
           <Button
             size="small"
@@ -227,6 +235,17 @@ const NostrLogin: React.FC = () => {
             style={{ marginLeft: '10px' }}
           >
             Create new order
+          </Button>
+          <Button
+            size="small"
+            type="text"
+            danger
+            onClick={() => {
+              setShowMyOrders(true);
+            }}
+            style={{ marginLeft: '10px' }}
+          >
+            My orders
           </Button>
           <Button
             size="small"
