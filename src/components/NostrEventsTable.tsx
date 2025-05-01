@@ -89,7 +89,7 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
 };
 
 const NostrEventsTable: React.FC = () => {
-  const { events, eventsLoading } = useNostrEvents();
+  const { events, eventsLoading, lastEvent } = useNostrEvents();
   const [tableEvents, setTableEvents] = useState<EventTableData[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventTableData[]>([]);
   const [currentQuote, setCurrentQuote] = useState<{ quote: string; author: string } | null>(null);
@@ -253,85 +253,6 @@ const NostrEventsTable: React.FC = () => {
     fetchExchangeRates();
   };
 
-  // Main effect to coordinate data loading
-  useEffect(() => {
-    loadData();
-
-    // Set up refresh interval for exchange rates
-    const interval = setInterval(async () => {
-      console.log('Refreshing exchange rates...');
-      await fetchExchangeRates();
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Effect to update prices when exchange rates change
-  useEffect(() => {
-    if (
-      (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
-      (!eventsLoading && Object.keys(events).length > 0)
-    ) {
-      console.log('Updating prices for all events with new exchange rates...');
-
-      const updatedEvents: EventTableData[] = []
-
-      events.forEach(event => {
-        const data = processEvent(event, exchangeRates)
-        if (data) updatedEvents.push(data)
-      })
-
-      console.log('Updated events with new prices:', updatedEvents);
-      setTableEvents(updatedEvents);
-
-      // Update depth chart data
-      const chartData = prepareDepthChartData(updatedEvents);
-      setDepthChartData(chartData);
-    }
-  }, [exchangeRates, ratesLoading, eventsLoading]);
-
-  // Effect to filter events when filter states or events change
-  useEffect(() => {
-    if (tableEvents.length === 0) {
-      setFilteredEvents([]);
-      return;
-    }
-
-    let result = [...tableEvents];
-
-    // Apply source filter
-    if (sourceFilter) {
-      result = result.filter(event => event.source === sourceFilter);
-    }
-
-    // Apply type filter
-    if (typeFilter) {
-      result = result.filter(event => event.is.toUpperCase() === typeFilter);
-    }
-
-    // Apply currency filter
-    if (currencyFilter) {
-      result = result.filter(event => event.currencyCode === currencyFilter);
-    }
-
-    // Apply payment method filter
-    if (paymentMethodFilter.trim() !== '') {
-      result = result.filter(
-        event =>
-          event.paymentMethods &&
-          event.paymentMethods.toLowerCase().includes(paymentMethodFilter.toLowerCase())
-      );
-    }
-
-    setFilteredEvents(result);
-    setTotalEvents(result.length);
-    setCurrentPage(1); // Reset to first page when filters change
-
-    // Update depth chart data based on filtered events
-    const chartData = prepareDepthChartData(result);
-    setDepthChartData(chartData);
-  }, [tableEvents, sourceFilter, typeFilter, currencyFilter, paymentMethodFilter]);
-
   // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -425,6 +346,156 @@ const NostrEventsTable: React.FC = () => {
     setCurrencyFilter(null);
     setPaymentMethodFilter('');
   };
+
+  // Handle .onion address actions
+  const handleGoAnyway = () => {
+    if (currentOnionAddress) {
+      window.open(currentOnionAddress, '_blank', 'noopener,noreferrer');
+    }
+    setOnionModalVisible(false);
+  };
+
+  // Handle .onion address actions
+  const onGoClearnet = () => {
+    if (currentOnionAddress) {
+      // Replace the onion domain with https://unsafe.robosats.org while preserving the path
+      const clearNetAddress = currentOnionAddress.replace(
+        /^https?:\/\/[^\/]+/,
+        'https://unsafe.robosats.org'
+      );
+      window.open(clearNetAddress, '_blank', 'noopener,noreferrer');
+    }
+    setOnionModalVisible(false);
+  };
+
+  const onCopyClink = () => {
+    if (currentOnionAddress) {
+      navigator.clipboard
+        .writeText(currentOnionAddress)
+        .catch(err => console.error('Failed to copy address: ', err));
+    }
+    setOnionModalVisible(false);
+  };
+
+  const handleDownloadTor = () => {
+    window.open('https://www.torproject.org/download/', '_blank', 'noopener,noreferrer');
+    setOnionModalVisible(false);
+  };
+
+  const handleCloseModal = () => {
+    setOnionModalVisible(false);
+  };
+
+  // Get a list of exchange rate sources for display with links
+  const getRateSourcesList = () => {
+    if (rateSources.length === 0) return 'No sources available';
+
+    // Map of source names to their URLs
+    const sourceUrls: Record<string, string> = {
+      coingecko: 'https://www.coingecko.com',
+      yadio: 'https://yadio.io',
+    };
+
+    return rateSources.map((source, index) => {
+      // Capitalize first letter of source name
+      const displayName = source.charAt(0).toUpperCase() + source.slice(1);
+
+      // Get URL for this source if available
+      const url = sourceUrls[source.toLowerCase()];
+
+      return (
+        <React.Fragment key={source}>
+          {index > 0 && ', '}
+          {url ? (
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              {displayName}
+            </a>
+          ) : (
+            displayName
+          )}
+        </React.Fragment>
+      );
+    });
+  };
+  
+  // Main effect to coordinate data loading
+  useEffect(() => {
+    loadData();
+
+    // Set up refresh interval for exchange rates
+    const interval = setInterval(async () => {
+      console.log('Refreshing exchange rates...');
+      await fetchExchangeRates();
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Effect to update prices when exchange rates change
+  useEffect(() => {
+    if (
+      (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
+      (!eventsLoading && Object.keys(events).length > 0)
+    ) {
+      console.log('Updating prices for all events with new exchange rates...');
+
+      const updatedEvents: EventTableData[] = []
+
+      events.forEach(event => {
+        const data = processEvent(event, exchangeRates)
+        if (data) updatedEvents.push(data)
+      })
+
+      console.log('Updated events with new prices:', updatedEvents);
+      setTableEvents(updatedEvents);
+
+      // Update depth chart data
+      const chartData = prepareDepthChartData(updatedEvents);
+      setDepthChartData(chartData);
+    }
+  }, [exchangeRates, ratesLoading, eventsLoading, lastEvent]);
+
+  // Effect to filter events when filter states or events change
+  useEffect(() => {
+    if (tableEvents.length === 0) {
+      setFilteredEvents([]);
+      return;
+    }
+
+    let result = [...tableEvents];
+
+    // Apply source filter
+    if (sourceFilter) {
+      result = result.filter(event => event.source === sourceFilter);
+    }
+
+    // Apply type filter
+    if (typeFilter) {
+      result = result.filter(event => event.is.toUpperCase() === typeFilter);
+    }
+
+    // Apply currency filter
+    if (currencyFilter) {
+      result = result.filter(event => event.currencyCode === currencyFilter);
+    }
+
+    // Apply payment method filter
+    if (paymentMethodFilter.trim() !== '') {
+      result = result.filter(
+        event =>
+          event.paymentMethods &&
+          event.paymentMethods.toLowerCase().includes(paymentMethodFilter.toLowerCase())
+      );
+    }
+
+    setFilteredEvents(result);
+    setTotalEvents(result.length);
+    setCurrentPage(1); // Reset to first page when filters change
+
+    // Update depth chart data based on filtered events
+    const chartData = prepareDepthChartData(result);
+    setDepthChartData(chartData);
+  }, [tableEvents, sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, lastEvent]);
 
   // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;
@@ -593,77 +664,6 @@ const NostrEventsTable: React.FC = () => {
       },
     },
   ];
-
-  // Handle .onion address actions
-  const handleGoAnyway = () => {
-    if (currentOnionAddress) {
-      window.open(currentOnionAddress, '_blank', 'noopener,noreferrer');
-    }
-    setOnionModalVisible(false);
-  };
-
-  // Handle .onion address actions
-  const onGoClearnet = () => {
-    if (currentOnionAddress) {
-      // Replace the onion domain with https://unsafe.robosats.org while preserving the path
-      const clearNetAddress = currentOnionAddress.replace(
-        /^https?:\/\/[^\/]+/,
-        'https://unsafe.robosats.org'
-      );
-      window.open(clearNetAddress, '_blank', 'noopener,noreferrer');
-    }
-    setOnionModalVisible(false);
-  };
-
-  const onCopyClink = () => {
-    if (currentOnionAddress) {
-      navigator.clipboard
-        .writeText(currentOnionAddress)
-        .catch(err => console.error('Failed to copy address: ', err));
-    }
-    setOnionModalVisible(false);
-  };
-
-  const handleDownloadTor = () => {
-    window.open('https://www.torproject.org/download/', '_blank', 'noopener,noreferrer');
-    setOnionModalVisible(false);
-  };
-
-  const handleCloseModal = () => {
-    setOnionModalVisible(false);
-  };
-
-  // Get a list of exchange rate sources for display with links
-  const getRateSourcesList = () => {
-    if (rateSources.length === 0) return 'No sources available';
-
-    // Map of source names to their URLs
-    const sourceUrls: Record<string, string> = {
-      coingecko: 'https://www.coingecko.com',
-      yadio: 'https://yadio.io',
-    };
-
-    return rateSources.map((source, index) => {
-      // Capitalize first letter of source name
-      const displayName = source.charAt(0).toUpperCase() + source.slice(1);
-
-      // Get URL for this source if available
-      const url = sourceUrls[source.toLowerCase()];
-
-      return (
-        <React.Fragment key={source}>
-          {index > 0 && ', '}
-          {url ? (
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              {displayName}
-            </a>
-          ) : (
-            displayName
-          )}
-        </React.Fragment>
-      );
-    });
-  };
 
   return (
     <div style={{ padding: '0px 10px' }}>
