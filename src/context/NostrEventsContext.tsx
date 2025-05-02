@@ -5,8 +5,16 @@ import { Filter } from 'nostr-tools/lib/types/filter';
 
 // Define the context type
 interface NostrEventsContextType {
+  pubkey: string | null;
+  setPubkey: (pubkey: string | null) => void;
+  removeEvent: (dTag: string) => void;
   events: Event[];
+  relays: string[];
+  webOfTrustKeys: string[] | null;
+  outboxRelays: string[];
   eventsLoading: boolean;
+  webOfTrustCount: number;
+  eventsCount: number;
   error: string | null;
   refreshEvents: () => void;
 }
@@ -21,8 +29,20 @@ interface NostrEventsProviderProps {
 
 // Create the provider component
 export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ children }) => {
+  const [pubkey, setPubkey] = useState<string | null>(null);
+  const [webOfTrustKeys, setWebOfTrustKeys] = useState<string[] | null>(null);
+  const [webOfTrustCount, setWebOfTrustCount] = useState<number>(0);
   const [events, setEvents] = useState<Event[]>([]);
+  const [relays] = useState<string[]>([
+    'wss://nostr.satstralia.com',
+    'wss://relay.damus.io',
+    'wss://relay.snort.social',
+    'wss://nos.lol',
+    'wss://relay.mostro.network'
+  ]);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
+  const [eventsCount, setEventsCount] = useState<number>(0);
+  const [outboxRelays, setOutboxRelays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Function to load events from Nostr relays
@@ -33,73 +53,109 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     try {
       const pool = new SimplePool();
 
-      // Connect to the specified relay plus random relays
-      const relays = [
-        'wss://nostr.satstralia.com',
-        'wss://relay.mostro.network',
-        'wss://relay.damus.io',
-        'wss://relay.snort.social',
-        'wss://nos.lol',
-        'wss://relay.current.fyi',
-      ];
-
       // Define the filter for kind 38383 events
       const filter: Filter = {
         kinds: [38383],
         '#s': ['pending'],
       };
 
-      // Create an array to store all events
-      const allEvents: Event[] = [];
-
       // Subscribe to events
-      const subscription = pool.subscribeMany(relays, [filter], {
+      pool.subscribeMany(relays, [filter], {
+        id: 'p2pBandOrders',
         onevent(event: Event) {
-          // Check if the event's pubkey is in the allowed list
-          const allowedPubkeys = [
-            '7af6f7cfc3bfdf8aa65df2465aa7841096fa8ee6b2d4d14fc43d974e5db9ab96',
-            'c8dc40a80bbb41fe7430fca9d0451b37a2341486ab65f890955528e4732da34a',
-            'f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c',
-            '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191',
-            'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e',
-            'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2',
-            '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390',
-          ];
-          const sourceTag = event.tags.find(tag => tag[0] === 'y') ?? [];
 
-          // Skip events whose pubkey is not in the allowed list
-          if (!allowedPubkeys.includes(event.pubkey) && sourceTag[1] !== 'mostro') {
-            console.log(sourceTag);
+          const statusTag = event.tags.find(tag => tag[0] === 's') ?? [];
+          const premiumTag = event.tags.find(tag => tag[0] === 'premium') ?? [];
+          const premium = premiumTag[1] ? parseInt(premiumTag[1], 10) : 100;
+
+          if (premium > 40 || premium < -40) {
             return;
           }
 
-          // Add the event to our collection
-          allEvents.push(event);
-          
-          // Sort by newest first
-          allEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-          
-          // Update state with the latest events
-          setEvents([...allEvents]);
-        },
-        oneose() {
-            setEventsLoading(false);
-          if (allEvents.length === 0) {
-            setError('No events found. Try again later.');
+          if (statusTag[1] !== 'pending') {
+            removeEvent(event.id);
+          } else {
+            setEvents(events => {
+              if (!events.find(e => e.id === event.id)) {
+                events.push(event);
+                setEventsCount(events.length);
+                return events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+              } else {
+                return events;
+              }
+            });
           }
         },
+        oneose() {
+          setEventsLoading(false);
+        },
       });
-
-      // Return cleanup function
-      return () => {
-        subscription.close();
-        pool.close(relays);
-      };
     } catch (error) {
       console.error('Error fetching events:', error);
       setError('Failed to fetch events. Please check your connection and try again.');
       setEventsLoading(false);
     }
+  };
+
+  const removeEvent = (dTag: string) => {
+    setEvents(events => {
+      return events.filter(e => {
+        const tag = e.tags.find(tag => tag[0] === 'd');
+        if (!tag?.[1]) {
+          setEventsCount(events.length - 1);
+          return true;
+        }
+        return dTag !== tag[1];
+      });
+    });
+  };
+
+  const buildWebOfTrust = (outbox: string[]) => {
+    setWebOfTrustKeys(keys => {
+      return [pubkey!];
+    });
+
+    const publishRelays = [...relays, ...outbox].reduce<string[]>((accumulator, current) => {
+      // Remove the last character if it's a '/'
+      const modifiedCurrent = current.endsWith('/') ? current.slice(0, -1) : current;
+
+      // Check if the modified current string is already in the accumulator
+      if (!accumulator.includes(modifiedCurrent)) {
+        accumulator.push(modifiedCurrent);
+      }
+      return accumulator;
+    }, []);
+
+    const pool = new SimplePool();
+    pool
+      .querySync(
+        publishRelays,
+        {
+          kinds: [3],
+          authors: [pubkey!],
+          limit: 1,
+        },
+        {
+          id: 'p2pWebOfTrust',
+        }
+      )
+      .then((events: Event[]) => {
+        if (events.length > 0) {
+          console.log('Found user follow list, buildint web of trust');
+          events.forEach(followsEvent => {
+            const pubKeys = followsEvent.tags.map(t => t[1]);
+            setWebOfTrustKeys(keys => {
+              if (keys) {
+                pubKeys.forEach(t => {
+                  if (!keys.includes(t)) keys.push(t);
+                });
+              }
+              setWebOfTrustCount(keys?.length ?? 0);
+              return keys;
+            });
+          });
+        }
+      });
   };
 
   // Initial load of events
@@ -108,20 +164,60 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     return cleanup;
   }, []);
 
+  useEffect(() => {
+    if (pubkey) {
+      try {
+        console.log('Fetching user outbox relays from metadata...');
+
+        const pool = new SimplePool();
+        pool
+          .querySync(
+            relays,
+            {
+              kinds: [10002],
+              authors: [pubkey!],
+              limit: 1,
+            },
+            {
+              id: 'p2pBandOutbox',
+            }
+          )
+          .then((events: Event[]) => {
+            if (events.length > 0) {
+              const rTags = events[0].tags
+                .filter(t => t[0] == 'r' && (t.length < 3 || t[2] === 'write'))
+                .map(t => t[1]);
+              console.log('Outbox relays:', rTags);
+
+              setOutboxRelays(rTags);
+              buildWebOfTrust(rTags);
+            }
+          });
+      } catch (error) {
+        console.error('Error fetching outbox relays:', error);
+        buildWebOfTrust([]);
+      }
+    }
+  }, [pubkey]);
+
   // Create the context value object
   const contextValue: NostrEventsContextType = {
+    pubkey,
+    setPubkey,
+    removeEvent,
+    webOfTrustKeys,
+    outboxRelays,
     events,
+    relays,
     eventsLoading,
+    webOfTrustCount,
+    eventsCount,
     error,
-    refreshEvents: loadEvents
+    refreshEvents: loadEvents,
   };
 
   // Provide the context to children
-  return (
-    <NostrEventsContext.Provider value={contextValue}>
-      {children}
-    </NostrEventsContext.Provider>
-  );
+  return <NostrEventsContext.Provider value={contextValue}>{children}</NostrEventsContext.Provider>;
 };
 
 // Custom hook to use the Nostr events context

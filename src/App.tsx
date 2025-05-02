@@ -3,6 +3,8 @@ import './App.css';
 import NostrEventsTable from './components/NostrEventsTable';
 import { ConfigProvider, theme } from 'antd';
 import { NostrEventsProvider } from './context/NostrEventsContext';
+import Header from 'components/Header';
+import NostrLogin from './components/NostrLogin';
 
 function App() {
   return (
@@ -19,7 +21,21 @@ function App() {
     >
       <NostrEventsProvider>
         <div className="App">
-          <NostrEventsTable />
+          <div
+            style={{
+              padding: '0px 0px 20px 0px',
+              width: '100%',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 'calc(100vh - 60px)',
+              background: '#121212',
+            }}
+          >
+            <Header />
+            <NostrLogin />
+            <NostrEventsTable />
+          </div>
         </div>
       </NostrEventsProvider>
     </ConfigProvider>

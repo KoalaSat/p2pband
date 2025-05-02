@@ -5,7 +5,7 @@ import { ExportOutlined } from '@ant-design/icons';
 import { ResponsiveLine } from '@nivo/line';
 import OnionAddressWarning from './OnionAddressWarning';
 import * as isoCountryCurrency from 'iso-country-currency';
-import { calculateBtcPrice, processEvent, updateExchangeRates } from 'functions';
+import { processEvent, updateExchangeRates } from 'functions';
 import { useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
 
@@ -34,6 +34,7 @@ export interface EventTableData {
   price: string | null;
   rawAmount: number | null;
   paymentMethods: string | null;
+  pubkey: string;
 }
 
 // Function to get flag emoji from currency code using iso-country-currency library
@@ -83,13 +84,13 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
       .map((char: string) => String.fromCodePoint(baseCharCode + char.charCodeAt(0) - 65))
       .join('');
   } catch (error) {
-    console.error(`Error getting flag for currency ${currencyCode}:`, error);
     return '';
   }
 };
 
 const NostrEventsTable: React.FC = () => {
-  const { events, eventsLoading } = useNostrEvents();
+  const { events, eventsLoading, eventsCount, pubkey, webOfTrustKeys, webOfTrustCount } =
+    useNostrEvents();
   const [tableEvents, setTableEvents] = useState<EventTableData[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventTableData[]>([]);
   const [currentQuote, setCurrentQuote] = useState<{ quote: string; author: string } | null>(null);
@@ -99,13 +100,13 @@ const NostrEventsTable: React.FC = () => {
   const [onionModalVisible, setOnionModalVisible] = useState<boolean>(false);
   const [currentOnionAddress, setCurrentOnionAddress] = useState<string>('');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+  const [webOfTrust, setWebOfTrust] = useState<boolean>(false);
   const [ratesLoading, setRatesLoading] = useState<boolean>(true);
   const [rateSources, setRateSources] = useState<string[]>([]);
   const [sortedInfo, setSortedInfo] = useState<{
     columnKey?: string | number;
     order?: 'ascend' | 'descend';
   }>({});
-  const [depthChartData, setDepthChartData] = useState<DepthChartData[]>([]);
 
   // Filter states
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -114,123 +115,16 @@ const NostrEventsTable: React.FC = () => {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('');
   const pageSize = 20;
 
-  // Function to prepare data for the depth chart
-  const prepareDepthChartData = (eventsData: EventTableData[]): DepthChartData[] => {
-    if (eventsData.length === 0) {
-      return [];
-    }
-
-    // Create maps to hold premium -> amount mappings before accumulating
-    const buyPremiumMap: Map<number, number> = new Map();
-    const sellPremiumMap: Map<number, number> = new Map();
-
-    // Process each event
-    eventsData.forEach(event => {
-      // Skip events without premium or raw amount
-      if (!event.premium || !event.rawAmount || !event.currencyCode) {
-        return;
-      }
-
-      // Parse premium as number
-      const premiumValue = parseFloat(event.premium);
-
-      // Convert amount to BTC using the exchange rate (reverse the rate)
-      let btcAmount = 0;
-      const currencyCode = event.currencyCode.toUpperCase();
-      if (exchangeRates[currencyCode] && exchangeRates[currencyCode] > 0) {
-        // Calculate the exchange rate with premium applied
-        const rateWithPremium = exchangeRates[currencyCode] * (1 + premiumValue / 100);
-
-        // Apply reverse exchange rate to get BTC amount
-        btcAmount = event.rawAmount / rateWithPremium;
-      } else {
-        return;
-      }
-
-      // Skip events with zero BTC amount or too hight amounts
-      if (btcAmount <= 0 || btcAmount > 0.5) {
-        return;
-      }
-
-      // Add to appropriate map based on event type (buy/sell)
-      if (event.is.toLowerCase() === 'buy') {
-        // If premium already exists, add to the amount
-        if (buyPremiumMap.has(premiumValue)) {
-          buyPremiumMap.set(premiumValue, buyPremiumMap.get(premiumValue)! + btcAmount);
-        } else {
-          buyPremiumMap.set(premiumValue, btcAmount);
-        }
-      } else if (event.is.toLowerCase() === 'sell') {
-        // If premium already exists, add to the amount
-        if (sellPremiumMap.has(premiumValue)) {
-          sellPremiumMap.set(premiumValue, sellPremiumMap.get(premiumValue)! + btcAmount);
-        } else {
-          sellPremiumMap.set(premiumValue, btcAmount);
-        }
-      }
-    });
-
-    // Create arrays from maps for buy and sell data
-    const buyArray: { premium: number; amount: number }[] = Array.from(buyPremiumMap.entries()).map(
-      ([premium, amount]) => ({ premium, amount })
-    );
-
-    const sellArray: { premium: number; amount: number }[] = Array.from(
-      sellPremiumMap.entries()
-    ).map(([premium, amount]) => ({ premium, amount }));
-
-    // Sort buy orders from highest to lowest premium
-    buyArray.sort((a, b) => b.premium - a.premium);
-
-    // Sort sell orders from lowest to highest premium
-    sellArray.sort((a, b) => a.premium - b.premium);
-
-    // Accumulate amounts
-    const buyData: { x: number; y: number }[] = [];
-    let buyAccumulated = 0;
-    buyArray.forEach(item => {
-      buyAccumulated += item.amount;
-      buyData.push({ x: item.premium, y: buyAccumulated });
-    });
-
-    const sellData: { x: number; y: number }[] = [];
-    let sellAccumulated = 0;
-    sellArray.forEach(item => {
-      sellAccumulated += item.amount;
-      sellData.push({ x: item.premium, y: sellAccumulated });
-    });
-
-    // Only include series that have data
-    const result = [];
-
-    if (buyData.length > 0) {
-      result.push({
-        id: 'Buy Orders',
-        data: buyData,
-      });
-    }
-
-    if (sellData.length > 0) {
-      result.push({
-        id: 'Sell Orders',
-        data: sellData,
-      });
-    }
-
-    return result;
-  };
-
   // Function to fetch exchange rates from multiple sources
   const fetchExchangeRates = async (): Promise<void> => {
     setRatesLoading(true);
-    
-    const [newRates, rateSources] = await updateExchangeRates()
-    
+
+    const [newRates, rateSources] = await updateExchangeRates();
+
     // Calculate average rates from all sources
     if (Object.keys(newRates).length > 0) {
-      console.log('Final average rates:', newRates);
       setExchangeRates(newRates);
-      setRateSources(rateSources)
+      setRateSources(rateSources);
       setError(null);
     }
 
@@ -252,85 +146,6 @@ const NostrEventsTable: React.FC = () => {
     // First, fetch exchange rates
     fetchExchangeRates();
   };
-
-  // Main effect to coordinate data loading
-  useEffect(() => {
-    loadData();
-
-    // Set up refresh interval for exchange rates
-    const interval = setInterval(async () => {
-      console.log('Refreshing exchange rates...');
-      await fetchExchangeRates();
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Effect to update prices when exchange rates change
-  useEffect(() => {
-    if (
-      (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
-      (!eventsLoading && Object.keys(events).length > 0)
-    ) {
-        console.log('Updating prices for all events with new exchange rates...');
-
-        const updatedEvents: EventTableData[] = []
-        
-        events.forEach(event => {
-          const data =  processEvent(event, exchangeRates)
-          if (data) updatedEvents.push(data)
-        })
-
-        console.log('Updated events with new prices:', updatedEvents);
-        setTableEvents(updatedEvents);
-
-        // Update depth chart data
-        const chartData = prepareDepthChartData(updatedEvents);
-        setDepthChartData(chartData);
-      }
-  }, [exchangeRates, ratesLoading, eventsLoading]);
-
-  // Effect to filter events when filter states or events change
-  useEffect(() => {
-    if (tableEvents.length === 0) {
-      setFilteredEvents([]);
-      return;
-    }
-
-    let result = [...tableEvents];
-
-    // Apply source filter
-    if (sourceFilter) {
-      result = result.filter(event => event.source === sourceFilter);
-    }
-
-    // Apply type filter
-    if (typeFilter) {
-      result = result.filter(event => event.is.toUpperCase() === typeFilter);
-    }
-
-    // Apply currency filter
-    if (currencyFilter) {
-      result = result.filter(event => event.currencyCode === currencyFilter);
-    }
-
-    // Apply payment method filter
-    if (paymentMethodFilter.trim() !== '') {
-      result = result.filter(
-        event =>
-          event.paymentMethods &&
-          event.paymentMethods.toLowerCase().includes(paymentMethodFilter.toLowerCase())
-      );
-    }
-
-    setFilteredEvents(result);
-    setTotalEvents(result.length);
-    setCurrentPage(1); // Reset to first page when filters change
-
-    // Update depth chart data based on filtered events
-    const chartData = prepareDepthChartData(result);
-    setDepthChartData(chartData);
-  }, [tableEvents, sourceFilter, typeFilter, currencyFilter, paymentMethodFilter]);
 
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -420,11 +235,154 @@ const NostrEventsTable: React.FC = () => {
   };
 
   const clearFilters = () => {
+    setWebOfTrust(false);
     setSourceFilter(null);
     setTypeFilter(null);
     setCurrencyFilter(null);
     setPaymentMethodFilter('');
   };
+
+  // Handle .onion address actions
+  const handleGoAnyway = () => {
+    if (currentOnionAddress) {
+      window.open(currentOnionAddress, '_blank', 'noopener,noreferrer');
+    }
+    setOnionModalVisible(false);
+  };
+
+  // Handle .onion address actions
+  const onGoClearnet = () => {
+    if (currentOnionAddress) {
+      // Replace the onion domain with https://unsafe.robosats.org while preserving the path
+      const clearNetAddress = currentOnionAddress.replace(
+        /^https?:\/\/[^\/]+/,
+        'https://unsafe.robosats.org'
+      );
+      window.open(clearNetAddress, '_blank', 'noopener,noreferrer');
+    }
+    setOnionModalVisible(false);
+  };
+
+  const onCopyClink = () => {
+    if (currentOnionAddress) {
+      navigator.clipboard
+        .writeText(currentOnionAddress)
+        .catch(err => console.error('Failed to copy address: ', err));
+    }
+    setOnionModalVisible(false);
+  };
+
+  const handleDownloadTor = () => {
+    window.open('https://www.torproject.org/download/', '_blank', 'noopener,noreferrer');
+    setOnionModalVisible(false);
+  };
+
+  const handleCloseModal = () => {
+    setOnionModalVisible(false);
+  };
+
+  // Get a list of exchange rate sources for display with links
+  const getRateSourcesList = () => {
+    if (rateSources.length === 0) return 'No sources available';
+
+    // Map of source names to their URLs
+    const sourceUrls: Record<string, string> = {
+      coingecko: 'https://www.coingecko.com',
+      yadio: 'https://yadio.io',
+    };
+
+    return rateSources.map((source, index) => {
+      // Capitalize first letter of source name
+      const displayName = source.charAt(0).toUpperCase() + source.slice(1);
+
+      // Get URL for this source if available
+      const url = sourceUrls[source.toLowerCase()];
+
+      return (
+        <React.Fragment key={source}>
+          {index > 0 && ', '}
+          {url ? (
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              {displayName}
+            </a>
+          ) : (
+            displayName
+          )}
+        </React.Fragment>
+      );
+    });
+  };
+
+  const calculateFilteredevents = (updatedEvents: EventTableData[]) => {
+    if (updatedEvents.length === 0) {
+      setFilteredEvents([]);
+      return;
+    }
+
+    let result = [...updatedEvents];
+
+    // Apply source filter
+    if (webOfTrust) {
+      result = result.filter(event => webOfTrustKeys?.includes(event.pubkey));
+    }
+
+    // Apply source filter
+    if (sourceFilter) {
+      result = result.filter(event => event.source === sourceFilter);
+    }
+
+    // Apply type filter
+    if (typeFilter) {
+      result = result.filter(event => event.is.toUpperCase() === typeFilter);
+    }
+
+    // Apply currency filter
+    if (currencyFilter) {
+      result = result.filter(event => event.currencyCode === currencyFilter);
+    }
+
+    // Apply payment method filter
+    if (paymentMethodFilter.trim() !== '') {
+      result = result.filter(
+        event =>
+          event.paymentMethods &&
+          event.paymentMethods.toLowerCase().includes(paymentMethodFilter.toLowerCase())
+      );
+    }
+
+    setFilteredEvents(result);
+    setTotalEvents(result.length);
+    setCurrentPage(1);
+  };
+
+  // Main effect to coordinate data loading
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Effect to update prices when exchange rates change
+  useEffect(() => {
+    if (
+      (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
+      (!eventsLoading && Object.keys(events).length > 0)
+    ) {
+      const updatedEvents: EventTableData[] = [];
+
+      events.forEach(event => {
+        const data = processEvent(event, exchangeRates);
+        if (data) updatedEvents.push(data);
+      });
+
+      setTableEvents(updatedEvents);
+
+      calculateFilteredevents(updatedEvents);
+    }
+  }, [events, exchangeRates, ratesLoading, eventsLoading, eventsCount]);
+
+  // Effect to filter events when filter states or events change
+  useEffect(() => {
+    calculateFilteredevents(tableEvents);
+  }, [sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, webOfTrust]);
 
   // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;
@@ -594,319 +552,262 @@ const NostrEventsTable: React.FC = () => {
     },
   ];
 
-  // Handle .onion address actions
-  const handleGoAnyway = () => {
-    if (currentOnionAddress) {
-      window.open(currentOnionAddress, '_blank', 'noopener,noreferrer');
-    }
-    setOnionModalVisible(false);
-  };
-
-  // Handle .onion address actions
-  const onGoClearnet = () => {
-    if (currentOnionAddress) {
-      // Replace the onion domain with https://unsafe.robosats.org while preserving the path
-      const clearNetAddress = currentOnionAddress.replace(
-        /^https?:\/\/[^\/]+/,
-        'https://unsafe.robosats.org'
-      );
-      window.open(clearNetAddress, '_blank', 'noopener,noreferrer');
-    }
-    setOnionModalVisible(false);
-  };
-
-  const onCopyClink = () => {
-    if (currentOnionAddress) {
-      navigator.clipboard
-        .writeText(currentOnionAddress)
-        .catch(err => console.error('Failed to copy address: ', err));
-    }
-    setOnionModalVisible(false);
-  };
-
-  const handleDownloadTor = () => {
-    window.open('https://www.torproject.org/download/', '_blank', 'noopener,noreferrer');
-    setOnionModalVisible(false);
-  };
-
-  const handleCloseModal = () => {
-    setOnionModalVisible(false);
-  };
-
-  // Get a list of exchange rate sources for display with links
-  const getRateSourcesList = () => {
-    if (rateSources.length === 0) return 'No sources available';
-
-    // Map of source names to their URLs
-    const sourceUrls: Record<string, string> = {
-      coingecko: 'https://www.coingecko.com',
-      yadio: 'https://yadio.io',
-    };
-
-    return rateSources.map((source, index) => {
-      // Capitalize first letter of source name
-      const displayName = source.charAt(0).toUpperCase() + source.slice(1);
-
-      // Get URL for this source if available
-      const url = sourceUrls[source.toLowerCase()];
-
-      return (
-        <React.Fragment key={source}>
-          {index > 0 && ', '}
-          {url ? (
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              {displayName}
-            </a>
-          ) : (
-            displayName
-          )}
-        </React.Fragment>
-      );
-    });
-  };
-
   return (
-    <div
-      style={{
-        padding: '0px 0px 20px 0px',
-        width: '100%',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 'calc(100vh - 60px)',
-        background: '#121212',
-      }}
-    >
-      <div
-        style={{
-          marginBottom: '20px',
-          textAlign: 'center',
-          fontFamily: '"Courier New", monospace',
-          letterSpacing: '2px',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <h1
+    <div style={{ padding: '0px 10px' }}>
+      {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
+
+      <OnionAddressWarning
+        visible={onionModalVisible}
+        onClose={handleCloseModal}
+        onGo={handleGoAnyway}
+        onCopyClink={onCopyClink}
+        onGoClearnet={onGoClearnet}
+        onDownloadTor={handleDownloadTor}
+        address={currentOnionAddress}
+      />
+
+      {ratesLoading ? (
+        <div
           style={{
-            color: '#0f0',
-            textShadow: '0 0 5px #0f0, 0 0 10px #0f0',
-            margin: '0 0 10px 0',
-            fontSize: '2.5rem',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            borderBottom: '2px solid #0f0',
-            padding: '10px',
-            position: 'relative',
+            textAlign: 'center',
+            padding: '50px',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 'calc(100vh - 200px)',
           }}
         >
-          P2P ₿AND
-          <span
+          <Spin size="large" />
+          {currentQuote && (
+            <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
+              <p style={{ fontStyle: 'italic' }}>&quot;{currentQuote.quote}&quot;</p>
+              <p style={{ fontWeight: 'bold' }}>— {currentQuote.author}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Depth Chart */}
+          <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
+            <DepthChart tableEvents={filteredEvents} exchangeRates={exchangeRates} />
+            <Title level={4} style={{ margin: '20px 0 0 0', minWidth: '120px' }}>
+              {`${totalEvents}`} Total Orders
+            </Title>
+          </Card>
+
+          {/* Filter UI */}
+          <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
+            <div
+              className="filter-container"
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
+            >
+              <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
+                Filter Options:
+              </Title>
+              <Space wrap style={{ flex: 1 }}>
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Source"
+                  allowClear
+                  onChange={handleSourceFilterChange}
+                  value={sourceFilter}
+                  options={getUniqueSources().map(source => ({ value: source, label: source }))}
+                />
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Type"
+                  allowClear
+                  onChange={handleTypeFilterChange}
+                  value={typeFilter}
+                  options={getUniqueTypes().map(type => ({ value: type, label: type }))}
+                />
+                <Select
+                  style={{ width: 180 }}
+                  placeholder="Currency"
+                  allowClear
+                  onChange={handleCurrencyFilterChange}
+                  value={currencyFilter}
+                  options={getUniqueCurrencies().map(currency => {
+                    let flag = '';
+                    try {
+                      flag = getCurrencyFlag(currency);
+                    } catch (error) {
+                      console.log(`No flag found for ${currency.toUpperCase()}`);
+                    }
+                    return {
+                      value: currency,
+                      label: (
+                        <span>
+                          {currency} {flag}
+                        </span>
+                      ),
+                    };
+                  })}
+                />
+                <Input
+                  style={{ width: 200 }}
+                  placeholder="Payment Method"
+                  value={paymentMethodFilter}
+                  onChange={handlePaymentMethodFilterChange}
+                  allowClear
+                />
+                {pubkey && (
+                  <div
+                    onClick={() => setWebOfTrust(v => !v)}
+                    style={{
+                      border: `2px solid ${webOfTrust ? '#41f4f4' : '#444'}`,
+                      borderRadius: '4px',
+                      padding: '2px 25px',
+                      backgroundColor: '#000',
+                      cursor: !webOfTrustKeys ? 'progress' : 'pointer',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      boxShadow: webOfTrust ? '0 0 10px rgba(65, 244, 244, 0.5)' : 'none',
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    {/* Terminal Header */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: webOfTrust ? '#41f4f4' : '#666',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Web of Trust
+                      </span>
+                      {!webOfTrustKeys || webOfTrustCount < 2 ? (
+                        <Spin size="small" style={{ marginLeft: 10 }} />
+                      ) : (
+                        <>
+                          <span
+                            style={{
+                              marginLeft: 10,
+                              color: '#41f4f4',
+                            }}
+                          >
+                            {webOfTrustCount}
+                          </span>
+                          <span
+                            style={{
+                              width: '12px',
+                              height: '12px',
+                              marginLeft: 10,
+                              borderRadius: '50%',
+                              backgroundColor: webOfTrust ? '#3cf73c' : '#666',
+                              display: 'inline-block',
+                              boxShadow: webOfTrust ? '0 0 5px #3cf73c' : 'none',
+                            }}
+                          ></span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Digital noise overlay for selected state */}
+                    {webOfTrust && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundImage:
+                            'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
+                          opacity: 0.05,
+                          pointerEvents: 'none',
+                        }}
+                      ></div>
+                    )}
+                  </div>
+                )}
+                <button
+                  onClick={clearFilters}
+                  style={{
+                    background: '#222',
+                    border: '1px solid #444',
+                    color: '#fff',
+                    padding: '5px 12px',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                  }}
+                  disabled={!sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter}
+                >
+                  Clear All Filters
+                </button>
+              </Space>
+            </div>
+          </Card>
+
+          <Table
+            dataSource={currentData}
+            columns={columns}
+            rowKey="id"
+            pagination={false}
+            bordered
+            style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}
+            onChange={handleTableChange}
+            sortDirections={['ascend', 'descend']}
+          />
+
+          <Pagination
+            responsive
+            current={currentPage}
+            pageSize={pageSize}
+            total={totalEvents}
+            onChange={handlePageChange}
+            showSizeChanger={false}
+            showLessItems={false}
+            size="default"
             style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(90deg, transparent 0%, #0f02 20%, transparent 40%)',
-              animation: 'scan 2s ease-in-out infinite',
-              pointerEvents: 'none',
+              width: '100%',
+              textAlign: 'center',
+              marginBottom: '20px',
             }}
           />
-        </h1>
-        <style>
-          {`
-            @keyframes scan {
-              0% { transform: translateX(-100%); }
-              100% { transform: translateX(100%); }
-            }
-          `}
-        </style>
-        <p style={{ color: '#0f0', fontSize: '0.9rem', margin: 0 }}>
-          P2P Bitcoin exchanges decentralized aggregator
-        </p>
-      </div>
-      <div style={{ padding: '0px 10px' }}>
-        {error && <Alert message={error} type="error" style={{ marginBottom: '20px' }} />}
+        </>
+      )}
 
-        <OnionAddressWarning
-          visible={onionModalVisible}
-          onClose={handleCloseModal}
-          onGo={handleGoAnyway}
-          onCopyClink={onCopyClink}
-          onGoClearnet={onGoClearnet}
-          onDownloadTor={handleDownloadTor}
-          address={currentOnionAddress}
-        />
-
-        {ratesLoading ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '50px',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: 'calc(100vh - 200px)',
-            }}
-          >
-            <Spin size="large" />
-            {currentQuote && (
-              <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
-                <p style={{ fontStyle: 'italic' }}>&quot;{currentQuote.quote}&quot;</p>
-                <p style={{ fontWeight: 'bold' }}>— {currentQuote.author}</p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Depth Chart */}
-            <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-              <DepthChart tableEvents={filteredEvents} exchangeRates={exchangeRates} />
-              <Title level={4} style={{ margin: '20px 0 0 0', minWidth: '120px' }}>
-                {`${totalEvents}`} Total Orders
-              </Title>
-            </Card>
-
-            {/* Filter UI */}
-            <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-              <div
-                className="filter-container"
-                style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
-              >
-                <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
-                  Filter Options:
-                </Title>
-                <Space wrap style={{ flex: 1 }}>
-                  <Select
-                    style={{ width: 180 }}
-                    placeholder="Source"
-                    allowClear
-                    onChange={handleSourceFilterChange}
-                    value={sourceFilter}
-                    options={getUniqueSources().map(source => ({ value: source, label: source }))}
-                  />
-                  <Select
-                    style={{ width: 180 }}
-                    placeholder="Type"
-                    allowClear
-                    onChange={handleTypeFilterChange}
-                    value={typeFilter}
-                    options={getUniqueTypes().map(type => ({ value: type, label: type }))}
-                  />
-                  <Select
-                    style={{ width: 180 }}
-                    placeholder="Currency"
-                    allowClear
-                    onChange={handleCurrencyFilterChange}
-                    value={currencyFilter}
-                    options={getUniqueCurrencies().map(currency => {
-                      let flag = '';
-                      try {
-                        flag = getCurrencyFlag(currency);
-                      } catch (error) {
-                        console.log(`No flag found for ${currency.toUpperCase()}`);
-                      }
-                      return {
-                        value: currency,
-                        label: (
-                          <span>
-                            {currency} {flag}
-                          </span>
-                        ),
-                      };
-                    })}
-                  />
-                  <Input
-                    style={{ width: 200 }}
-                    placeholder="Payment Method"
-                    value={paymentMethodFilter}
-                    onChange={handlePaymentMethodFilterChange}
-                    allowClear
-                  />
-                  <button
-                    onClick={clearFilters}
-                    style={{
-                      background: '#222',
-                      border: '1px solid #444',
-                      color: '#fff',
-                      padding: '5px 12px',
-                      borderRadius: '2px',
-                      cursor: 'pointer',
-                    }}
-                    disabled={
-                      !sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter
-                    }
-                  >
-                    Clear All Filters
-                  </button>
-                </Space>
-              </div>
-            </Card>
-
-            <Table
-              dataSource={currentData}
-              columns={columns}
-              rowKey="id"
-              pagination={false}
-              bordered
-              style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}
-              onChange={handleTableChange}
-              sortDirections={['ascend', 'descend']}
-            />
-
-            <Pagination
-              responsive
-              current={currentPage}
-              pageSize={pageSize}
-              total={totalEvents}
-              onChange={handlePageChange}
-              showSizeChanger={false}
-              showLessItems={false}
-              size="default"
-              style={{
-                width: '100%',
-                textAlign: 'center',
-                marginBottom: '20px',
-              }}
-            />
-          </>
-        )}
-
-        <div
-          className="footer-container"
-          style={{
-            marginTop: 'auto',
-            padding: '10px 0',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          <div>
-            {!ratesLoading && Object.keys(rateSources).length > 0 && (
-              <small style={{ color: '#666' }}>
-                Exchange rates: Average from {getRateSourcesList()}
-              </small>
-            )}
-          </div>
-          <div>
+      <div
+        className="footer-container"
+        style={{
+          marginTop: 'auto',
+          padding: '10px 0',
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '10px',
+        }}
+      >
+        <div>
+          {!ratesLoading && Object.keys(rateSources).length > 0 && (
             <small style={{ color: '#666' }}>
-              {'Vibe coded with 🐨 by'}
-              <a
-                href="https://njump.me/npub1v3tgrwwsv7c6xckyhm5dmluc05jxd4yeqhpxew87chn0kua0tjzqc6yvjh"
-                target="_blank"
-                style={{ marginLeft: 4 }}
-                rel="noreferrer"
-              >
-                KoalaSat
-              </a>
+              Exchange rates: Average from {getRateSourcesList()}
             </small>
-          </div>
+          )}
         </div>
-        <style>
-          {`
+        <div>
+          <small style={{ color: '#666' }}>
+            {'Vibe coded with 🐨 by'}
+            <a
+              href="https://njump.me/npub1v3tgrwwsv7c6xckyhm5dmluc05jxd4yeqhpxew87chn0kua0tjzqc6yvjh"
+              target="_blank"
+              style={{ marginLeft: 4 }}
+              rel="noreferrer"
+            >
+              KoalaSat
+            </a>
+          </small>
+        </div>
+      </div>
+      <style>
+        {`
             @media (max-width: 768px) {
               .footer-container {
                 flex-direction: column;
@@ -914,8 +815,7 @@ const NostrEventsTable: React.FC = () => {
               }
             }
           `}
-        </style>
-      </div>
+      </style>
     </div>
   );
 };
