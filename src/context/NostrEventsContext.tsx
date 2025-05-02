@@ -38,7 +38,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     'wss://relay.damus.io',
     'wss://relay.snort.social',
     'wss://nos.lol',
-    'wss://relay.mostro.network'
+    'wss://relay.mostro.network',
   ]);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
   const [eventsCount, setEventsCount] = useState<number>(0);
@@ -63,12 +63,12 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       pool.subscribeMany(relays, [filter], {
         id: 'p2pBandOrders',
         onevent(event: Event) {
-
+          const expirationTag = event.tags.find(tag => tag[0] === 'expiration');
           const statusTag = event.tags.find(tag => tag[0] === 's') ?? [];
           const premiumTag = event.tags.find(tag => tag[0] === 'premium') ?? [];
           const premium = premiumTag[1] ? parseInt(premiumTag[1], 10) : 100;
 
-          if (premium > 40 || premium < -40) {
+          if (premium > 40 || premium < -40 || !expirationTag) {
             return;
           }
 
