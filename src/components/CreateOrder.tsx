@@ -717,7 +717,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
             type="primary"
             onClick={onCreateorder}
             block
-            disabled={!amount && paymentMethods !== ''}
+            disabled={!amount || paymentMethods === ''}
             loading={publishing}
           >
             {'// PUBLISH'}
