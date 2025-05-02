@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Pagination, Typography, Spin, Alert, Tag, Select, Space, Card, Input } from 'antd';
+import {
+  Table,
+  Pagination,
+  Typography,
+  Spin,
+  Alert,
+  Tag,
+  Select,
+  Space,
+  Card,
+  Input,
+  Row,
+  Col,
+} from 'antd';
 import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
 import { ResponsiveLine } from '@nivo/line';
@@ -235,7 +248,6 @@ const NostrEventsTable: React.FC = () => {
   };
 
   const clearFilters = () => {
-    setWebOfTrust(false);
     setSourceFilter(null);
     setTypeFilter(null);
     setCurrencyFilter(null);
@@ -596,152 +608,179 @@ const NostrEventsTable: React.FC = () => {
 
           {/* Filter UI */}
           <Card style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-            <div
-              className="filter-container"
-              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
-            >
-              <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
-                Filter Options:
-              </Title>
-              <Space wrap style={{ flex: 1 }}>
-                <Select
-                  style={{ width: 180 }}
-                  placeholder="Source"
-                  allowClear
-                  onChange={handleSourceFilterChange}
-                  value={sourceFilter}
-                  options={getUniqueSources().map(source => ({ value: source, label: source }))}
-                />
-                <Select
-                  style={{ width: 180 }}
-                  placeholder="Type"
-                  allowClear
-                  onChange={handleTypeFilterChange}
-                  value={typeFilter}
-                  options={getUniqueTypes().map(type => ({ value: type, label: type }))}
-                />
-                <Select
-                  style={{ width: 180 }}
-                  placeholder="Currency"
-                  allowClear
-                  onChange={handleCurrencyFilterChange}
-                  value={currencyFilter}
-                  options={getUniqueCurrencies().map(currency => {
-                    let flag = '';
-                    try {
-                      flag = getCurrencyFlag(currency);
-                    } catch (error) {
-                      console.log(`No flag found for ${currency.toUpperCase()}`);
-                    }
-                    return {
-                      value: currency,
-                      label: (
-                        <span>
-                          {currency} {flag}
-                        </span>
-                      ),
-                    };
-                  })}
-                />
-                <Input
-                  style={{ width: 200 }}
-                  placeholder="Payment Method"
-                  value={paymentMethodFilter}
-                  onChange={handlePaymentMethodFilterChange}
-                  allowClear
-                />
-                {pubkey && (
-                  <div
-                    onClick={() => setWebOfTrust(v => !v)}
-                    style={{
-                      border: `2px solid ${webOfTrust ? '#41f4f4' : '#444'}`,
-                      borderRadius: '4px',
-                      padding: '2px 25px',
-                      backgroundColor: '#000',
-                      cursor: !webOfTrustKeys ? 'progress' : 'pointer',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      boxShadow: webOfTrust ? '0 0 10px rgba(65, 244, 244, 0.5)' : 'none',
-                      transition: 'all 0.3s ease',
-                    }}
-                  >
-                    {/* Terminal Header */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <span
+            <Row justify="space-between" gutter={[0, 10]}>
+              <Col md={24} lg={4}>
+                <Title level={4} style={{ margin: '0', minWidth: '120px' }}>
+                  Filter Options:
+                </Title>
+              </Col>
+              <Col md={24} lg={10}>
+                <Row gutter={[0, 10]}>
+                  <Col span={24}>
+                    <Row justify="space-between" gutter={[0, 10]}>
+                      <Col md={7} xs={24}>
+                        <Select
+                          style={{ width: '100%' }}
+                          placeholder="Source"
+                          allowClear
+                          onChange={handleSourceFilterChange}
+                          value={sourceFilter}
+                          options={getUniqueSources().map(source => ({
+                            value: source,
+                            label: source,
+                          }))}
+                        />
+                      </Col>
+                      <Col md={7} xs={24}>
+                        <Select
+                          style={{ width: '100%' }}
+                          placeholder="Type"
+                          allowClear
+                          onChange={handleTypeFilterChange}
+                          value={typeFilter}
+                          options={getUniqueTypes().map(type => ({ value: type, label: type }))}
+                        />
+                      </Col>
+                      <Col md={7} xs={24}>
+                        <Select
+                          style={{ width: '100%' }}
+                          placeholder="Currency"
+                          allowClear
+                          onChange={handleCurrencyFilterChange}
+                          value={currencyFilter}
+                          options={getUniqueCurrencies().map(currency => {
+                            let flag = '';
+                            try {
+                              flag = getCurrencyFlag(currency);
+                            } catch (error) {
+                              console.log(`No flag found for ${currency.toUpperCase()}`);
+                            }
+                            return {
+                              value: currency,
+                              label: (
+                                <span>
+                                  {currency} {flag}
+                                </span>
+                              ),
+                            };
+                          })}
+                        />
+                      </Col>
+                    </Row>
+                  </Col>
+                  <Col span={24}>
+                    <Input
+                      placeholder="Payment Method"
+                      value={paymentMethodFilter}
+                      onChange={handlePaymentMethodFilterChange}
+                      allowClear
+                    />
+                  </Col>
+                </Row>
+              </Col>
+              <Col md={24} lg={9}>
+                <Row style={{ width: '100%' }}>
+                  {pubkey && (
+                    <Col span={24}>
+                      <div
+                        onClick={() => setWebOfTrust(v => !v)}
                         style={{
-                          color: webOfTrust ? '#41f4f4' : '#666',
-                          fontWeight: 'bold',
+                          border: `2px solid ${webOfTrust ? '#41f4f4' : '#444'}`,
+                          borderRadius: '4px',
+                          padding: '3px 15px',
+                          backgroundColor: '#000',
+                          cursor: !webOfTrustKeys ? 'progress' : 'pointer',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          boxShadow: webOfTrust ? '0 0 10px rgba(65, 244, 244, 0.5)' : 'none',
+                          transition: 'all 0.3s ease',
+                          width: '100%',
+                          marginBottom: 10,
                         }}
                       >
-                        Web of Trust
-                      </span>
-                      {!webOfTrustKeys || webOfTrustCount < 2 ? (
-                        <Spin size="small" style={{ marginLeft: 10 }} />
-                      ) : (
-                        <>
+                        {/* Terminal Header */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
                           <span
                             style={{
-                              marginLeft: 10,
-                              color: '#41f4f4',
+                              color: webOfTrust ? '#41f4f4' : '#666',
+                              fontWeight: 'bold',
                             }}
                           >
-                            {webOfTrustCount}
+                            Web of Trust
                           </span>
-                          <span
+                          <span>
+                            <span
+                              style={{
+                                marginLeft: 10,
+                                color: '#41f4f4',
+                              }}
+                            >
+                              {webOfTrustCount}
+                            </span>
+                            {!webOfTrustKeys || webOfTrustCount < 2 ? (
+                              <Spin size="small" style={{ marginLeft: 10 }} />
+                            ) : (
+                              <span
+                                style={{
+                                  width: '12px',
+                                  height: '12px',
+                                  marginLeft: 10,
+                                  borderRadius: '50%',
+                                  backgroundColor: webOfTrust ? '#3cf73c' : '#666',
+                                  display: 'inline-block',
+                                  boxShadow: webOfTrust ? '0 0 5px #3cf73c' : 'none',
+                                }}
+                              ></span>
+                            )}
+                          </span>
+                        </div>
+                        {/* Digital noise overlay for selected state */}
+                        {webOfTrust && (
+                          <div
                             style={{
-                              width: '12px',
-                              height: '12px',
-                              marginLeft: 10,
-                              borderRadius: '50%',
-                              backgroundColor: webOfTrust ? '#3cf73c' : '#666',
-                              display: 'inline-block',
-                              boxShadow: webOfTrust ? '0 0 5px #3cf73c' : 'none',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundImage:
+                                'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
+                              opacity: 0.05,
+                              pointerEvents: 'none',
                             }}
-                          ></span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Digital noise overlay for selected state */}
-                    {webOfTrust && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          backgroundImage:
-                            'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4d5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c4zIgcAAAAEXRSTlP0/vwOJhEbFvn49vPbvbSgZpv4SiUAAACQSURBVEjH7ZTbCoAgEEWX5GXUvGvu///oOLM+FCQaaPAczZ6zVYaI/cwEU4noqVAqWMtGmHB6cBIseYgQIUKE/CExZI98fHJCrCdP+KPfkIkSos8KsOUGfPNXdD1Ru8FxepIatIorJUQ/L2BPuqJAvrJruGZZuGZvO7ZxO0pR8Nu4PYTbGtruhbcGbpvVnQv/zAsRXxky9QAAAABJRU5ErkJggg==")',
-                          opacity: 0.05,
-                          pointerEvents: 'none',
-                        }}
-                      ></div>
-                    )}
-                  </div>
-                )}
-                <button
-                  onClick={clearFilters}
-                  style={{
-                    background: '#222',
-                    border: '1px solid #444',
-                    color: '#fff',
-                    padding: '5px 12px',
-                    borderRadius: '2px',
-                    cursor: 'pointer',
-                  }}
-                  disabled={!sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter}
-                >
-                  Clear All Filters
-                </button>
-              </Space>
-            </div>
+                          ></div>
+                        )}
+                      </div>
+                    </Col>
+                  )}
+                  <Col span={24}>
+                    <button
+                      onClick={clearFilters}
+                      style={{
+                        width: '100%',
+                        background: '#222',
+                        border: '1px solid #444',
+                        color: '#fff',
+                        padding: '7px 12px',
+                        borderRadius: '2px',
+                        cursor: 'pointer',
+                      }}
+                      disabled={
+                        !sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter
+                      }
+                    >
+                      Clear All Filters
+                    </button>
+                  </Col>
+                </Row>
+              </Col>
+            </Row>
           </Card>
 
           <Table
