@@ -29,7 +29,7 @@ interface MyOrdersProps {
 }
 
 const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
-  const { events, pubkey, outboxRelays, relays, lastEvent, removeEvent } = useNostrEvents();
+  const { events, pubkey, outboxRelays, relays, eventsCount, removeEvent } = useNostrEvents();
 
   // Filter and process events that match the user's pubkey
   const myOrders = useMemo(() => {
@@ -39,7 +39,7 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
       .filter(event => event.pubkey === pubkey)
       .map(event => processEvent(event, {}))
       .filter(event => event !== null) as EventTableData[];
-  }, [events, pubkey, lastEvent]);
+  }, [events, pubkey, eventsCount]);
 
   // Render premium tag with color based on value
   const renderPremium = (premium: string | null) => {

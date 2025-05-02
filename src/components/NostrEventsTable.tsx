@@ -89,7 +89,8 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
 };
 
 const NostrEventsTable: React.FC = () => {
-  const { events, eventsLoading, lastEvent, pubkey, webOfTrustKeys } = useNostrEvents();
+  const { events, eventsLoading, eventsCount, pubkey, webOfTrustKeys, webOfTrustCount } =
+    useNostrEvents();
   const [tableEvents, setTableEvents] = useState<EventTableData[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventTableData[]>([]);
   const [currentQuote, setCurrentQuote] = useState<{ quote: string; author: string } | null>(null);
@@ -376,7 +377,7 @@ const NostrEventsTable: React.FC = () => {
 
       calculateFilteredevents(updatedEvents);
     }
-  }, [events, exchangeRates, ratesLoading, eventsLoading, lastEvent]);
+  }, [events, exchangeRates, ratesLoading, eventsLoading, eventsCount]);
 
   // Effect to filter events when filter states or events change
   useEffect(() => {
@@ -680,7 +681,7 @@ const NostrEventsTable: React.FC = () => {
                       >
                         Web of Trust
                       </span>
-                      {!webOfTrustKeys || webOfTrustKeys.length < 2 ? (
+                      {!webOfTrustKeys || webOfTrustCount < 2 ? (
                         <Spin size="small" style={{ marginLeft: 10 }} />
                       ) : (
                         <>
@@ -690,7 +691,7 @@ const NostrEventsTable: React.FC = () => {
                               color: '#41f4f4',
                             }}
                           >
-                            {webOfTrustKeys.length}
+                            {webOfTrustCount}
                           </span>
                           <span
                             style={{

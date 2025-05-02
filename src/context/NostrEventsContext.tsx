@@ -13,7 +13,8 @@ interface NostrEventsContextType {
   webOfTrustKeys: string[] | null;
   outboxRelays: string[];
   eventsLoading: boolean;
-  lastEvent: number;
+  webOfTrustCount: number;
+  eventsCount: number;
   error: string | null;
   refreshEvents: () => void;
 }
@@ -30,6 +31,7 @@ interface NostrEventsProviderProps {
 export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ children }) => {
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [webOfTrustKeys, setWebOfTrustKeys] = useState<string[] | null>(null);
+  const [webOfTrustCount, setWebOfTrustCount] = useState<number>(0);
   const [events, setEvents] = useState<Event[]>([]);
   const [relays] = useState<string[]>([
     'wss://nostr.satstralia.com',
@@ -38,7 +40,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     'wss://nos.lol',
   ]);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
-  const [lastEvent, setLastEvent] = useState<number>(0);
+  const [eventsCount, setEventsCount] = useState<number>(0);
   const [outboxRelays, setOutboxRelays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,9 +58,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
         '#s': ['pending'],
       };
 
-      // Create an array to store all events
-      const allEvents: Event[] = [];
-
       // Subscribe to events
       pool.subscribeMany(relays, [filter], {
         id: 'p2pBandOrders',
@@ -66,28 +65,22 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
           const premiumTag = event.tags.find(tag => tag[0] === 'premium') ?? [];
           const premium = premiumTag[1] ? parseInt(premiumTag[1], 10) : 100;
 
-          // Skip events whose pubkey is not in the allowed list
           if (premium > 40 || premium < -40) {
             return;
           }
 
-          if (!eventsLoading) removeEvent(event.id);
-
-          // Add the event to our collection
-          allEvents.push(event);
-
-          // Sort by newest first
-          allEvents.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-
-          // Update state with the latest events
-          setEvents([...allEvents]);
-          setLastEvent(new Date().getUTCDate());
+          setEvents(events => {
+            if (!events.find(e => e.id === event.id)) {
+              events.push(event);
+              setEventsCount(events.length);
+              return events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+            } else {
+              return events;
+            }
+          });
         },
         oneose() {
           setEventsLoading(false);
-          if (allEvents.length === 0) {
-            setError('No events found. Try again later.');
-          }
         },
       });
     } catch (error) {
@@ -99,10 +92,12 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
   const removeEvent = (dTag: string) => {
     setEvents(events => {
-      setLastEvent(new Date().getUTCDate());
       return events.filter(e => {
         const tag = e.tags.find(tag => tag[0] === 'd');
-        if (!tag?.[1]) return true;
+        if (!tag?.[1]) {
+          setEventsCount(events.length - 1);
+          return true;
+        }
         return dTag !== tag[1];
       });
     });
@@ -148,6 +143,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
                   if (!keys.includes(t)) keys.push(t);
                 });
               }
+              setWebOfTrustCount(keys?.length ?? 0);
               return keys;
             });
           });
@@ -207,7 +203,8 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     events,
     relays,
     eventsLoading,
-    lastEvent,
+    webOfTrustCount,
+    eventsCount,
     error,
     refreshEvents: loadEvents,
   };
