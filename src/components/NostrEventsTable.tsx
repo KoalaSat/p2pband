@@ -634,11 +634,14 @@ const NostrEventsTable: React.FC = () => {
                       <Col md={7} xs={24}>
                         <Select
                           style={{ width: '100%' }}
-                          placeholder="Type"
+                          placeholder="I want to"
                           allowClear
                           onChange={handleTypeFilterChange}
                           value={typeFilter}
-                          options={getUniqueTypes().map(type => ({ value: type, label: type }))}
+                          options={[
+                            { value: 'BUY', label: 'SELL' },
+                            { value: 'SELL', label: 'BUY' },
+                          ]}
                         />
                       </Col>
                       <Col md={7} xs={24}>
