@@ -575,7 +575,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                     }
                   }}
                   style={{
-                    border: `2px solid ${layers.includes('onchain') ? '#41f4f4' : '#444'}`,
+                    border: `2px solid ${layers.includes('onchain') ? '#F7931A' : '#444'}`,
                     borderRadius: '4px',
                     padding: '10px',
                     backgroundColor: '#000',
@@ -583,7 +583,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                     position: 'relative',
                     overflow: 'hidden',
                     boxShadow: layers.includes('onchain')
-                      ? '0 0 10px rgba(65, 244, 244, 0.5)'
+                      ? '0 0 10px rgba(247, 147, 26, 0.5)'
                       : 'none',
                     transition: 'all 0.3s ease',
                   }}
@@ -598,7 +598,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                   >
                     <span
                       style={{
-                        color: layers.includes('onchain') ? '#41f4f4' : '#666',
+                        color: layers.includes('onchain') ? '#F7931A' : '#666',
                         fontWeight: 'bold',
                       }}
                     >
@@ -609,9 +609,11 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
                         width: '12px',
                         height: '12px',
                         borderRadius: '50%',
-                        backgroundColor: layers.includes('onchain') ? '#3cf73c' : '#666',
+                        backgroundColor: layers.includes('onchain') ? '#F7931A' : '#666',
                         display: 'inline-block',
-                        boxShadow: layers.includes('onchain') ? '0 0 5px #3cf73c' : 'none',
+                        boxShadow: layers.includes('onchain')
+                          ? '0 0 10px rgba(247, 147, 26, 0.5)'
+                          : 'none',
                       }}
                     ></span>
                   </div>
