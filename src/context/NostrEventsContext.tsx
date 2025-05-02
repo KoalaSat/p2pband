@@ -62,6 +62,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       pool.subscribeMany(relays, [filter], {
         id: 'p2pBandOrders',
         onevent(event: Event) {
+          const statusTag = event.tags.find(tag => tag[0] === 's') ?? [];
           const premiumTag = event.tags.find(tag => tag[0] === 'premium') ?? [];
           const premium = premiumTag[1] ? parseInt(premiumTag[1], 10) : 100;
 
@@ -69,15 +70,19 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
             return;
           }
 
-          setEvents(events => {
-            if (!events.find(e => e.id === event.id)) {
-              events.push(event);
-              setEventsCount(events.length);
-              return events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-            } else {
-              return events;
-            }
-          });
+          if (statusTag[1] !== 'pending') {
+            removeEvent(event.id);
+          } else {
+            setEvents(events => {
+              if (!events.find(e => e.id === event.id)) {
+                events.push(event);
+                setEventsCount(events.length);
+                return events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+              } else {
+                return events;
+              }
+            });
+          }
         },
         oneose() {
           setEventsLoading(false);
