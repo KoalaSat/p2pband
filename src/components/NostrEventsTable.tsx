@@ -509,22 +509,7 @@ const NostrEventsTable: React.FC = () => {
       dataIndex: 'paymentMethods',
       key: 'paymentMethods',
       render: (methods: string | null) => {
-        if (!methods) return '-';
-
-        // Check for characters that are likely emojis using a simple for loop
-        // Most emojis have character codes > 127 (outside standard ASCII)
-        let hasEmoji = false;
-        for (let i = 0; i < methods.length; i++) {
-          if (methods.charCodeAt(i) > 127) {
-            hasEmoji = true;
-            break;
-          }
-        }
-
-        // If it contains emoji, display just a dash
-        if (hasEmoji) return '-';
-
-        return <div>{methods}</div>;
+        return methods || '-';
       },
     },
 
