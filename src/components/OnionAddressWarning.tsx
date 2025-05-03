@@ -24,7 +24,11 @@ const OnionAddressWarning: React.FC<OnionAddressWarningProps> = ({
 }) => {
   return (
     <Modal
-      title={<Title level={4}>{'>>'} TOR NETWORK WARNING_</Title>}
+      title={
+        <Title level={4}>
+          {'>>'} ACESSING TOR NETWORK<span className="blink">_</span>
+        </Title>
+      }
       open={visible}
       onCancel={onClose}
       footer={null}
@@ -36,22 +40,6 @@ const OnionAddressWarning: React.FC<OnionAddressWarningProps> = ({
           <strong>[!] ATTEMPTING TO ACCESS ONION ADDRESS:</strong>
         </Paragraph>
         <Paragraph
-          code
-          style={{
-            wordBreak: 'break-all',
-            backgroundColor: '#000',
-            border: '1px solid #3cf73c',
-            padding: '10px',
-            color: '#3cf73c',
-            fontFamily: 'Roboto Mono, Share Tech Mono, monospace',
-            fontSize: '15px',
-            fontWeight: 400,
-            textShadow: '0 0 1px rgba(60, 247, 60, 0.2)',
-          }}
-        >
-          {address}
-        </Paragraph>
-        <Paragraph
           style={{
             fontFamily: 'Roboto Mono, Share Tech Mono, monospace',
             fontSize: '15px',
@@ -60,7 +48,7 @@ const OnionAddressWarning: React.FC<OnionAddressWarningProps> = ({
             textShadow: '0 0 1px rgba(60, 247, 60, 0.2)',
           }}
         >
-          .onion addresses require the Tor Browser to work properly. If you&quot;re not using Tor
+          .onion addresses require the Tor Browser to work properly. If you&lsquo;re not using Tor
           Browser, the link may not load correctly.
         </Paragraph>
         <Space direction="vertical" style={{ width: '100%', marginTop: '20px' }}>

@@ -179,7 +179,11 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
 
   return (
     <Modal
-      title={<Title level={4}>{'>>'} CREATE ORDER_</Title>}
+      title={
+        <Title level={4}>
+          {'>>'} CREATE ORDER<span className="blink">_</span>
+        </Title>
+      }
       open={visible}
       onCancel={onClose}
       footer={null}

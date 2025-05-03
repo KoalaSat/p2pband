@@ -145,7 +145,8 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
         <div className="cyberpunk-title">
           <Title level={4} style={{ margin: 0, display: 'inline-block' }}>
             {'>> '}
-            <span className="text-glow">MY_ORDERS</span>_
+            <span className="text-glow">MY_ORDERS</span>
+            <span className="blink">_</span>
           </Title>
         </div>
       }
@@ -158,7 +159,7 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
       {myOrders.length === 0 ? (
         <Typography.Text className="cyber-text">
           {'> '}
-          <span className="blink">_</span> No orders found with your pubkey.
+          No orders found with your pubkey.
         </Typography.Text>
       ) : (
         <List
