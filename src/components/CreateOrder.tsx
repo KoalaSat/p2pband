@@ -103,7 +103,7 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ visible, onClose }) => {
         ['fa', amountType === 'fixed' ? amount?.toString() || '0' : amountMin?.toString() || '0'],
         ['pm', paymentMethods.toString()],
         ['premium', premium.toString()],
-        ['source', `https://njump.me/:${nip19.npubEncode(pubkey)}`],
+        ['source', `https://njump.me/${nip19.npubEncode(pubkey)}`],
         ['network', 'mainnet'],
         ['layer', layers.join(',')],
         ['bond', '0'],
