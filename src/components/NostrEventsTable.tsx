@@ -510,21 +510,24 @@ const NostrEventsTable: React.FC = () => {
       key: 'paymentMethods',
       render: (methods: string | null) => {
         if (!methods) return '-';
+        
+        const removeDecorations = (str: string): string =>
+          str.replace(
+            /[\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Symbol}\p{Other_Symbol}\u200d\uFE0F\u3000-\u303F]/gu,
+            ''
+          );
 
-        // Check for characters that are likely emojis using a simple for loop
-        // Most emojis have character codes > 127 (outside standard ASCII)
-        let hasEmoji = false;
-        for (let i = 0; i < methods.length; i++) {
-          if (methods.charCodeAt(i) > 127) {
-            hasEmoji = true;
-            break;
-          }
-        }
-
-        // If it contains emoji, display just a dash
-        if (hasEmoji) return '-';
-
-        return <div>{methods}</div>;
+        const cleanText = removeDecorations(methods).replace(/\s+/g, ' ').trim();
+        
+        if (!cleanText) return '-';
+    
+        const shortText = cleanText.length > 40 ? `${cleanText.slice(0, 40)}…` : cleanText;
+    
+        return (
+          <Tooltip title={methods}>
+            <div>{shortText}</div>
+          </Tooltip>
+        );
       },
     },
 
