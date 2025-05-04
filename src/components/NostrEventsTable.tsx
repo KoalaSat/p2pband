@@ -12,6 +12,7 @@ import {
   Input,
   Row,
   Col,
+  Tooltip,
 } from 'antd';
 import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
@@ -510,7 +511,7 @@ const NostrEventsTable: React.FC = () => {
       key: 'paymentMethods',
       render: (methods: string | null) => {
         if (!methods) return '-';
-        
+
         const removeDecorations = (str: string): string =>
           str.replace(
             /[\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Symbol}\p{Other_Symbol}\u200d\uFE0F\u3000-\u303F]/gu,
@@ -518,11 +519,11 @@ const NostrEventsTable: React.FC = () => {
           );
 
         const cleanText = removeDecorations(methods).replace(/\s+/g, ' ').trim();
-        
+
         if (!cleanText) return '-';
-    
+
         const shortText = cleanText.length > 40 ? `${cleanText.slice(0, 40)}…` : cleanText;
-    
+
         return (
           <Tooltip title={methods}>
             <div>{shortText}</div>
