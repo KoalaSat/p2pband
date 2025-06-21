@@ -149,6 +149,16 @@
       "code": "VND",
       "name": "Vietnamese Dong",
       "symbol": "₫"
+    },
+    {
+      "code": "MLC",
+      "name": "Moneda Libremente Convertible (Cuba)",
+      "symbol": "MLC"
+    },
+    {
+      "code": "IRT",
+      "name": "Iranian Rial Toman",
+      "symbol": "IRT"
     }
   ],
   "crypto": [
