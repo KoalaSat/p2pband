@@ -74,6 +74,8 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
       ZAR: '🇿🇦', // South African Rand
       VES: '🇻🇪', // Venezuelan Bolívar Soberano
       USDVE: '🇻🇪', // USD in Venezuela (custom code)
+      MLC: '🇨🇺', // Moneda Libremente Convertible (Cuba)
+      IRT: '🇮🇷', // Iranian Rial Toman
       BTC: '₿', // Bitcoin with its symbol instead of a flag
     };
 
