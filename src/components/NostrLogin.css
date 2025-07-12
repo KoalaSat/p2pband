@@ -71,21 +71,21 @@
   .nostr-login-container {
     padding: 5px;
   }
-  
+
   .user-info-container {
     flex-direction: column;
     gap: 5px;
   }
-  
+
   .button-container {
     width: 100%;
   }
-  
+
   .action-button {
     width: calc(100% - 10px);
     margin: 3px 5px;
   }
-  
+
   .login-button {
     width: calc(100% - 20px);
   }
@@ -96,7 +96,7 @@
   .user-info-container {
     gap: 8px;
   }
-  
+
   .action-button {
     margin: 4px;
   }
@@ -107,7 +107,7 @@
   .nostr-login-container {
     padding: 15px;
   }
-  
+
   .button-container {
     gap: 10px;
   }
