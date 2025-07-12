@@ -11,7 +11,8 @@
 }
 
 @keyframes textScan {
-  0%, 100% {
+  0%,
+  100% {
     color: #0f0;
   }
   50% {
@@ -65,7 +66,7 @@
 }
 
 .App::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
@@ -75,7 +76,6 @@
   animation: gradientBg 3s ease infinite;
   background-size: 200% 200%;
 }
-
 
 body {
   background-color: #090909; /* Dark background for the page */
@@ -93,7 +93,9 @@ html {
   overflow-x: hidden;
 }
 
-*, *:before, *:after {
+*,
+*:before,
+*:after {
   box-sizing: inherit;
 }
 
@@ -185,12 +187,12 @@ html {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .filter-container .ant-space {
     flex-wrap: wrap;
     margin-top: 10px;
   }
-  
+
   .filter-container .ant-select,
   .filter-container .ant-input {
     width: 100% !important;
@@ -252,7 +254,7 @@ html {
 }
 
 /* Button styling */
-button, 
+button,
 .ant-btn {
   background-color: #090909 !important;
   border: 1px solid #0f0 !important;
@@ -265,7 +267,7 @@ button,
   overflow: hidden;
 }
 
-button:hover, 
+button:hover,
 .ant-btn:hover,
 .ant-btn-primary:hover {
   background-color: #0c0c0c !important;
@@ -281,14 +283,14 @@ button:hover,
 }
 
 /* Select and input styling */
-.ant-select, 
+.ant-select,
 .ant-input {
   color: #0f0 !important;
   font-family: 'Share Tech Mono', monospace !important;
   border-radius: 0 !important;
 }
 
-.ant-select:hover, 
+.ant-select:hover,
 .ant-input:hover {
   border-color: #0ff !important;
 }
@@ -371,9 +373,9 @@ button:hover,
   text-shadow: 0 0 1px rgba(60, 247, 60, 0.2) !important;
 }
 
-.ant-typography h1, 
-.ant-typography h2, 
-.ant-typography h3, 
+.ant-typography h1,
+.ant-typography h2,
+.ant-typography h3,
 .ant-typography h4 {
   color: #41f4f4 !important;
   font-family: 'Roboto Mono', 'VT323', monospace !important;
