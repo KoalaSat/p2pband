@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './NostrLogin.css';
 import { Button, Typography, Tag } from 'antd';
-import { Event } from 'nostr-tools/lib/types/core';
+import { Event, UnsignedEvent } from 'nostr-tools/lib/types/core';
 import { KeyOutlined, UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNostrEvents } from '../context/NostrEventsContext';
 import CreateOrder from './CreateOrder';
@@ -12,7 +12,7 @@ import { SimplePool } from 'nostr-tools';
 interface NostrWindow extends Window {
   nostr?: {
     getPublicKey(): Promise<string>;
-    signEvent(event: Event): Promise<Event>;
+    signEvent(event: UnsignedEvent): Promise<Event>;
   };
 }
 

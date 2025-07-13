@@ -764,12 +764,14 @@ const NostrEventsTable: React.FC = () => {
           </Card>
 
           <Table
+            // @ts-ignore
             dataSource={currentData}
             columns={columns}
             rowKey="id"
             pagination={false}
             bordered
             style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}
+            // @ts-ignore
             onChange={handleTableChange}
             sortDirections={['ascend', 'descend']}
           />

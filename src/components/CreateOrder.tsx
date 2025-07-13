@@ -3,14 +3,14 @@ import { Modal, Button, Space, Typography, Select, InputNumber, Form, Row, Col, 
 import currenciesData from '../data/currencies.json';
 import { useNostrEvents } from 'context/NostrEventsContext';
 import { v4 as uuidv4 } from 'uuid';
-import { Event } from 'nostr-tools/lib/types/core';
+import { Event, UnsignedEvent } from 'nostr-tools/lib/types/core';
 import { nip19, SimplePool } from 'nostr-tools';
 
 // Define the Nostr window interface for TypeScript
 declare global {
   interface Window {
     nostr?: {
-      signEvent: (event: Event) => Promise<Event>;
+      signEvent: (event: UnsignedEvent) => Promise<Event>;
       getPublicKey?: () => Promise<string>;
       nip04?: {
         encrypt?: (pubkey: string, plaintext: string) => Promise<string>;

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Modal, List, Typography, Tag, Button } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
-import { Event } from 'nostr-tools/lib/types/core';
+import { Event, UnsignedEvent } from 'nostr-tools/lib/types/core';
 
 import { useNostrEvents } from 'context/NostrEventsContext';
 import Title from 'antd/es/typography/Title';
@@ -13,7 +13,7 @@ import { SimplePool } from 'nostr-tools';
 declare global {
   interface Window {
     nostr?: {
-      signEvent: (event: Event) => Promise<Event>;
+      signEvent: (event: UnsignedEvent) => Promise<Event>;
       getPublicKey?: () => Promise<string>;
       nip04?: {
         encrypt?: (pubkey: string, plaintext: string) => Promise<string>;
@@ -65,13 +65,13 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
 
     const event = events.find(e => e.id === orderId);
 
-    if (event) {
+    if (event && pubkey) {
       const now = Math.floor(Date.now() / 1000);
       const tags = event.tags.filter(t => t[0] !== 's');
       const dTag = tags.find(tag => tag[0] === 'd');
       tags.push(['s', 'success']);
 
-      const nostrEvent = {
+      const nostrEvent: UnsignedEvent = {
         pubkey: pubkey,
         created_at: now,
         kind: 38383,
