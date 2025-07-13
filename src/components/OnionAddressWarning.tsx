@@ -8,9 +8,7 @@ interface OnionAddressWarningProps {
   onClose: () => void;
   onGo: () => void;
   onCopyClink: () => void;
-  onGoClearnet: () => void;
   onDownloadTor: () => void;
-  address: string;
 }
 
 const OnionAddressWarning: React.FC<OnionAddressWarningProps> = ({
@@ -18,9 +16,7 @@ const OnionAddressWarning: React.FC<OnionAddressWarningProps> = ({
   onClose,
   onGo,
   onCopyClink,
-  onGoClearnet,
   onDownloadTor,
-  address,
 }) => {
   return (
     <Modal
@@ -55,9 +51,6 @@ const OnionAddressWarning: React.FC<OnionAddressWarningProps> = ({
           <Button type="primary" onClick={onGo} block>
             {'// I AM ALREADY USING TOR'}
           </Button>
-          {/* <Button type="primary" onClick={onGoClearnet} block>
-            {'// OPEN CLEARNET LINK /!\\ '}
-          </Button> */}
           <Button onClick={onCopyClink} block>
             {'// COPY LINK'}
           </Button>

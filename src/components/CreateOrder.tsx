@@ -10,7 +10,7 @@ import { nip19, SimplePool } from 'nostr-tools';
 declare global {
   interface Window {
     nostr?: {
-      signEvent: (event: any) => Promise<any>;
+      signEvent: (event: Event) => Promise<Event>;
       getPublicKey?: () => Promise<string>;
       nip04?: {
         encrypt?: (pubkey: string, plaintext: string) => Promise<string>;

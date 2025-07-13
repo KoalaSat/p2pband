@@ -67,14 +67,14 @@ const DepthChart = ({ tableEvents, exchangeRates }: DepthChartProps) => {
       if (event.is.toLowerCase() === 'buy') {
         // If premium already exists, add to the amount
         if (buyPremiumMap.has(premiumValue)) {
-          buyPremiumMap.set(premiumValue, buyPremiumMap.get(premiumValue)! + btcAmount);
+          buyPremiumMap.set(premiumValue, buyPremiumMap.get(premiumValue) ?? 0 + btcAmount);
         } else {
           buyPremiumMap.set(premiumValue, btcAmount);
         }
       } else if (event.is.toLowerCase() === 'sell') {
         // If premium already exists, add to the amount
         if (sellPremiumMap.has(premiumValue)) {
-          sellPremiumMap.set(premiumValue, sellPremiumMap.get(premiumValue)! + btcAmount);
+          sellPremiumMap.set(premiumValue, sellPremiumMap.get(premiumValue) ?? 0 + btcAmount);
         } else {
           sellPremiumMap.set(premiumValue, btcAmount);
         }
