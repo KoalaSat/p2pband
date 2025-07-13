@@ -7,32 +7,23 @@ import {
   Alert,
   Tag,
   Select,
-  Space,
   Card,
   Input,
   Row,
   Col,
   Tooltip,
+  TablePaginationConfig,
 } from 'antd';
 import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
-import { ResponsiveLine } from '@nivo/line';
 import OnionAddressWarning from './OnionAddressWarning';
 import * as isoCountryCurrency from 'iso-country-currency';
 import { processEvent, updateExchangeRates } from 'functions';
 import { useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
+import { FilterValue, SorterResult } from 'antd/es/table/interface';
 
 const { Title } = Typography;
-
-// Define interface for depth chart data
-interface DepthChartData {
-  id: string;
-  data: Array<{
-    x: number;
-    y: number;
-  }>;
-}
 
 // Define the structure of the processed event data for the table
 export interface EventTableData {
@@ -49,6 +40,11 @@ export interface EventTableData {
   rawAmount: number | null;
   paymentMethods: string | null;
   pubkey: string;
+}
+
+interface SorterInfo {
+  columnKey?: string | number;
+  order?: 'ascend' | 'descend';
 }
 
 // Function to get flag emoji from currency code using iso-country-currency library
@@ -119,10 +115,7 @@ const NostrEventsTable: React.FC = () => {
   const [webOfTrust, setWebOfTrust] = useState<boolean>(false);
   const [ratesLoading, setRatesLoading] = useState<boolean>(true);
   const [rateSources, setRateSources] = useState<string[]>([]);
-  const [sortedInfo, setSortedInfo] = useState<{
-    columnKey?: string | number;
-    order?: 'ascend' | 'descend';
-  }>({});
+  const [sortedInfo, setSortedInfo] = useState<SorterResult<SorterInfo>>({});
 
   // Filter states
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -169,7 +162,11 @@ const NostrEventsTable: React.FC = () => {
   };
 
   // Handle table change for sorting
-  const handleTableChange = (_pagination: any, _filters: any, sorter: any) => {
+  const handleTableChange = (
+    _pagination: TablePaginationConfig,
+    _filters: Record<string, FilterValue | null>,
+    sorter: SorterResult<SorterInfo>
+  ) => {
     setSortedInfo(sorter);
 
     if (sorter && sorter.columnKey) {
@@ -213,16 +210,6 @@ const NostrEventsTable: React.FC = () => {
     return Array.from(sources).sort();
   };
 
-  const getUniqueTypes = () => {
-    const types = new Set<string>();
-    tableEvents.forEach(event => {
-      if (event.is && event.is !== '-') {
-        types.add(event.is.toUpperCase());
-      }
-    });
-    return Array.from(types).sort();
-  };
-
   const getUniqueCurrencies = () => {
     const currencies = new Set<string>();
     tableEvents.forEach(event => {
@@ -261,19 +248,6 @@ const NostrEventsTable: React.FC = () => {
   const handleGoAnyway = () => {
     if (currentOnionAddress) {
       window.open(currentOnionAddress, '_blank', 'noopener,noreferrer');
-    }
-    setOnionModalVisible(false);
-  };
-
-  // Handle .onion address actions
-  const onGoClearnet = () => {
-    if (currentOnionAddress) {
-      // Replace the onion domain with https://unsafe.robosats.org while preserving the path
-      const clearNetAddress = currentOnionAddress.replace(
-        /^https?:\/\/[^\/]+/,
-        'https://unsafe.robosats.org'
-      );
-      window.open(clearNetAddress, '_blank', 'noopener,noreferrer');
     }
     setOnionModalVisible(false);
   };
@@ -367,7 +341,6 @@ const NostrEventsTable: React.FC = () => {
 
     setFilteredEvents(result);
     setTotalEvents(result.length);
-    setCurrentPage(1);
   };
 
   // Main effect to coordinate data loading
@@ -464,7 +437,7 @@ const NostrEventsTable: React.FC = () => {
       title: 'Price',
       dataIndex: 'price',
       key: 'price',
-      render: (value: string | null, record: EventTableData) => {
+      render: (value: string | null) => {
         if (!value) return '-';
 
         // Check if the price value starts with 0 (e.g., "0 VES/BTC")
@@ -579,9 +552,7 @@ const NostrEventsTable: React.FC = () => {
         onClose={handleCloseModal}
         onGo={handleGoAnyway}
         onCopyClink={onCopyClink}
-        onGoClearnet={onGoClearnet}
         onDownloadTor={handleDownloadTor}
-        address={currentOnionAddress}
       />
 
       {ratesLoading ? (

@@ -67,7 +67,6 @@ export const processEvent = (
     const amountTag = event.tags.find(tag => tag[0] === 'fa');
     const currencyTag = event.tags.find(tag => tag[0] === 'f');
     const linkTag = event.tags.find(tag => tag[0] === 'source');
-    const sTag = event.tags.find(tag => tag[0] === 's');
     const premiumTag = event.tags.find(tag => tag[0] === 'premium');
     const bondTag = event.tags.find(tag => tag[0] === 'bond');
     const paymentMethodsTag = event.tags.find(tag => tag[0] === 'pm');

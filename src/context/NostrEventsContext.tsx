@@ -124,9 +124,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   };
 
   const buildWebOfTrust = (outbox: string[]) => {
-    setWebOfTrustKeys(keys => {
-      return [pubkey!];
-    });
+    setWebOfTrustKeys([pubkey ?? '']);
 
     const publishRelays = [...relays, ...outbox].reduce<string[]>((accumulator, current) => {
       // Remove the last character if it's a '/'
@@ -145,7 +143,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
         publishRelays,
         {
           kinds: [3],
-          authors: [pubkey!],
+          authors: [pubkey ?? ''],
           limit: 1,
         },
         {
@@ -188,7 +186,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
             relays,
             {
               kinds: [10002],
-              authors: [pubkey!],
+              authors: [pubkey ?? ''],
               limit: 1,
             },
             {

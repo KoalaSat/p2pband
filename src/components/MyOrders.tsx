@@ -13,7 +13,7 @@ import { SimplePool } from 'nostr-tools';
 declare global {
   interface Window {
     nostr?: {
-      signEvent: (event: any) => Promise<any>;
+      signEvent: (event: Event) => Promise<Event>;
       getPublicKey?: () => Promise<string>;
       nip04?: {
         encrypt?: (pubkey: string, plaintext: string) => Promise<string>;
@@ -66,10 +66,8 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
     const event = events.find(e => e.id === orderId);
 
     if (event) {
-      const { id, sig, created_at, ...unsignedEvent } = event;
-
       const now = Math.floor(Date.now() / 1000);
-      const tags = unsignedEvent.tags.filter(t => t[0] !== 's');
+      const tags = event.tags.filter(t => t[0] !== 's');
       const dTag = tags.find(tag => tag[0] === 'd');
       tags.push(['s', 'success']);
 

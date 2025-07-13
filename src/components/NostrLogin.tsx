@@ -12,7 +12,7 @@ import { SimplePool } from 'nostr-tools';
 interface NostrWindow extends Window {
   nostr?: {
     getPublicKey(): Promise<string>;
-    signEvent(event: any): Promise<any>;
+    signEvent(event: Event): Promise<Event>;
   };
 }
 
@@ -143,7 +143,7 @@ const NostrLogin: React.FC = () => {
     }
 
     try {
-      const pk = await window.nostr!.getPublicKey();
+      const pk = (await window.nostr?.getPublicKey()) ?? '';
       setPubkey(pk);
       // Store the pubkey in localStorage for persistence
       savePubkeyToStorage(pk);
