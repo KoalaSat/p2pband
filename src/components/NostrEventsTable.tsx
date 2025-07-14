@@ -19,9 +19,10 @@ import { ExportOutlined } from '@ant-design/icons';
 import OnionAddressWarning from './OnionAddressWarning';
 import * as isoCountryCurrency from 'iso-country-currency';
 import { processEvent, updateExchangeRates } from 'functions';
-import { useNostrEvents } from 'context/NostrEventsContext';
+import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
 import { FilterValue, SorterResult } from 'antd/es/table/interface';
+import { nip19 } from 'nostr-tools';
 
 const { Title } = Typography;
 
@@ -101,8 +102,16 @@ const getCurrencyFlag = (currencyCode: string | null): string => {
 };
 
 const NostrEventsTable: React.FC = () => {
-  const { events, eventsLoading, eventsCount, pubkey, webOfTrustKeys, webOfTrustCount } =
-    useNostrEvents();
+  const {
+    events,
+    eventsLoading,
+    eventsCount,
+    pubkey,
+    webOfTrustKeys,
+    webOfTrustCount,
+    webOfTrust,
+    setWebOfTrust,
+  } = useNostrEvents();
   const [tableEvents, setTableEvents] = useState<EventTableData[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<EventTableData[]>([]);
   const [currentQuote, setCurrentQuote] = useState<{ quote: string; author: string } | null>(null);
@@ -112,7 +121,6 @@ const NostrEventsTable: React.FC = () => {
   const [onionModalVisible, setOnionModalVisible] = useState<boolean>(false);
   const [currentOnionAddress, setCurrentOnionAddress] = useState<string>('');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
-  const [webOfTrust, setWebOfTrust] = useState<boolean>(false);
   const [ratesLoading, setRatesLoading] = useState<boolean>(true);
   const [rateSources, setRateSources] = useState<string[]>([]);
   const [sortedInfo, setSortedInfo] = useState<SorterResult<SorterInfo>>({});
@@ -313,6 +321,8 @@ const NostrEventsTable: React.FC = () => {
     // Apply source filter
     if (webOfTrust) {
       result = result.filter(event => webOfTrustKeys?.includes(event.pubkey));
+    } else {
+      result = result.filter(event => allowedPubkeys?.includes(event.pubkey));
     }
 
     // Apply source filter
@@ -511,33 +521,48 @@ const NostrEventsTable: React.FC = () => {
       title: 'Link',
       dataIndex: 'link',
       key: 'link',
-      render: (text: string) => {
-        if (text && text !== '-') {
-          const isOnionAddress = text.toLowerCase().includes('.onion');
+      render: (text: string, record: EventTableData) => {
+        const knownPubKey = allowedPubkeys.includes(record.pubkey);
 
-          if (isOnionAddress) {
-            return (
-              <a
-                href="#"
-                onClick={e => {
-                  e.preventDefault();
-                  setCurrentOnionAddress(text);
-                  setOnionModalVisible(true);
-                }}
-                title={text}
-              >
-                <ExportOutlined style={{ fontSize: '16px' }} />
-              </a>
-            );
+        if (knownPubKey) {
+          if (text && text !== '-') {
+            const isOnionAddress = text.toLowerCase().includes('.onion');
+
+            if (isOnionAddress) {
+              return (
+                <a
+                  href="#"
+                  onClick={e => {
+                    e.preventDefault();
+                    setCurrentOnionAddress(text);
+                    setOnionModalVisible(true);
+                  }}
+                  title={text}
+                >
+                  <ExportOutlined style={{ fontSize: '16px' }} />
+                </a>
+              );
+            } else {
+              return (
+                <a href={text} target="_blank" rel="noopener noreferrer" title={text}>
+                  <ExportOutlined style={{ fontSize: '16px' }} />
+                </a>
+              );
+            }
           } else {
-            return (
-              <a href={text} target="_blank" rel="noopener noreferrer" title={text}>
-                <ExportOutlined style={{ fontSize: '16px' }} />
-              </a>
-            );
+            return '-'
           }
         } else {
-          return '-';
+          return (
+            <a
+              href={`https://njump.me/${nip19.npubEncode(record.pubkey)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={text}
+            >
+              <ExportOutlined style={{ fontSize: '16px' }} />
+            </a>
+          )
         }
       },
     },
@@ -659,11 +684,58 @@ const NostrEventsTable: React.FC = () => {
                 </Row>
               </Col>
               <Col md={24} lg={9}>
-                <Row style={{ width: '100%' }}>
-                  {pubkey && (
-                    <Col span={24}>
+                <Row style={{ width: '100%' }} justify="space-between" gutter={16}>
+                  <Col span={12}>
+                    <div
+                      onClick={() => setWebOfTrust(false)}
+                      style={{
+                        border: `2px solid ${!webOfTrust ? '#41f4f4' : '#444'}`,
+                        borderRadius: '4px',
+                        padding: '3px 15px',
+                        backgroundColor: '#000',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        boxShadow: !webOfTrust ? '0 0 10px rgba(65, 244, 244, 0.5)' : 'none',
+                        transition: 'all 0.3s ease',
+                        width: '100%',
+                        marginBottom: 10,
+                      }}
+                    >
+                      {/* Terminal Header */}
                       <div
-                        onClick={() => setWebOfTrust(v => !v)}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: !webOfTrust ? '#41f4f4' : '#666',
+                            fontWeight: 'bold',
+                          }}
+                        >
+                          P2P.BAND
+                        </span>
+                        <span
+                          style={{
+                            width: '12px',
+                            height: '12px',
+                            marginLeft: 10,
+                            borderRadius: '50%',
+                            backgroundColor: !webOfTrust ? '#3cf73c' : '#666',
+                            display: 'inline-block',
+                            boxShadow: !webOfTrust ? '0 0 5px #3cf73c' : 'none',
+                          }}
+                        ></span>
+                      </div>
+                    </div>
+                  </Col>
+                  {pubkey && (
+                    <Col span={12}>
+                      <div
+                        onClick={() => setWebOfTrust(true)}
                         style={{
                           border: `2px solid ${webOfTrust ? '#41f4f4' : '#444'}`,
                           borderRadius: '4px',
@@ -697,7 +769,6 @@ const NostrEventsTable: React.FC = () => {
                           <span>
                             <span
                               style={{
-                                marginLeft: 10,
                                 color: '#41f4f4',
                               }}
                             >

@@ -8,6 +8,8 @@ interface NostrEventsContextType {
   pubkey: string | null;
   setPubkey: (pubkey: string | null) => void;
   removeEvent: (dTag: string) => void;
+  webOfTrust: boolean;
+  setWebOfTrust: (webOfTrust: boolean) => void;
   events: Event[];
   relays: string[];
   webOfTrustKeys: string[] | null;
@@ -27,11 +29,24 @@ interface NostrEventsProviderProps {
   children: ReactNode;
 }
 
+export const allowedPubkeys = [
+  'ded3dc02a1a9b61ce59d11f496539cb3fd15f00326a16f47e5f8d76baba24bdb',
+  '95521a33ba34f5924464f425e81b896b1aa9069796a778368ed053e3612c509b',
+  '7af6f7cfc3bfdf8aa65df2465aa7841096fa8ee6b2d4d14fc43d974e5db9ab96',
+  'c8dc40a80bbb41fe7430fca9d0451b37a2341486ab65f890955528e4732da34a',
+  'f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c',
+  '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191',
+  'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e',
+  'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2',
+  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390',
+];
+
 // Create the provider component
 export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ children }) => {
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [webOfTrustKeys, setWebOfTrustKeys] = useState<string[] | null>(null);
   const [webOfTrustCount, setWebOfTrustCount] = useState<number>(0);
+  const [webOfTrust, setWebOfTrust] = useState<boolean>(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [relays] = useState<string[]>([
     'wss://nostr.satstralia.com',
@@ -45,18 +60,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   const [outboxRelays, setOutboxRelays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const allowedPubkeys = [
-    'ded3dc02a1a9b61ce59d11f496539cb3fd15f00326a16f47e5f8d76baba24bdb',
-    '95521a33ba34f5924464f425e81b896b1aa9069796a778368ed053e3612c509b',
-    '7af6f7cfc3bfdf8aa65df2465aa7841096fa8ee6b2d4d14fc43d974e5db9ab96',
-    'c8dc40a80bbb41fe7430fca9d0451b37a2341486ab65f890955528e4732da34a',
-    'f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c',
-    '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191',
-    'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e',
-    'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2',
-    '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390',
-  ];
-
   // Function to load events from Nostr relays
   const loadEvents = () => {
     setEventsLoading(true);
@@ -69,7 +72,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       const filter: Filter = {
         kinds: [38383],
         '#s': ['pending'],
-        authors: allowedPubkeys,
       };
 
       // Subscribe to events
@@ -216,6 +218,8 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     pubkey,
     setPubkey,
     removeEvent,
+    webOfTrust,
+    setWebOfTrust,
     webOfTrustKeys,
     outboxRelays,
     events,

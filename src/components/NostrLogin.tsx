@@ -219,7 +219,7 @@ const NostrLogin: React.FC = () => {
             {name()}
           </Tag>
           <div className="button-container">
-            {/* <Button
+            <Button
               size="small"
               type="text"
               danger
@@ -240,7 +240,7 @@ const NostrLogin: React.FC = () => {
               className="action-button"
             >
               My orders
-            </Button> */}
+            </Button>
             <Button
               size="small"
               type="text"
