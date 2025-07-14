@@ -715,6 +715,17 @@ const NostrEventsTable: React.FC = () => {
                         >
                           P2P.BAND
                         </span>
+                        <span
+                          style={{
+                            width: '12px',
+                            height: '12px',
+                            marginLeft: 10,
+                            borderRadius: '50%',
+                            backgroundColor: !webOfTrust ? '#3cf73c' : '#666',
+                            display: 'inline-block',
+                            boxShadow: !webOfTrust ? '0 0 5px #3cf73c' : 'none',
+                          }}
+                        ></span>
                       </div>
                     </div>
                   </Col>
