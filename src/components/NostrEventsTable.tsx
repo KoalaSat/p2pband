@@ -550,7 +550,7 @@ const NostrEventsTable: React.FC = () => {
               );
             }
           } else {
-            return '-'
+            return '-';
           }
         } else {
           return (
@@ -562,7 +562,7 @@ const NostrEventsTable: React.FC = () => {
             >
               <ExportOutlined style={{ fontSize: '16px' }} />
             </a>
-          )
+          );
         }
       },
     },
