@@ -22,6 +22,7 @@ import { processEvent, updateExchangeRates } from 'functions';
 import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
 import { FilterValue, SorterResult } from 'antd/es/table/interface';
+import { nip19 } from 'nostr-tools';
 
 const { Title } = Typography;
 
@@ -549,17 +550,28 @@ const NostrEventsTable: React.FC = () => {
               );
             }
           } else {
+            return (
+              <a
+                href={`https://njump.me/${nip19.npubEncode(record.pubkey)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={text}
+              >
+                <ExportOutlined style={{ fontSize: '16px' }} />
+              </a>
+            )
+          }
+        } else {
+          return (
             <a
-              href={`https://njump.me/${record.pubkey}`}
+              href={`https://njump.me/${nip19.npubEncode(record.pubkey)}`}
               target="_blank"
               rel="noopener noreferrer"
               title={text}
             >
               <ExportOutlined style={{ fontSize: '16px' }} />
-            </a>;
-          }
-        } else {
-          return '-';
+            </a>
+          )
         }
       },
     },
