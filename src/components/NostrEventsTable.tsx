@@ -520,30 +520,43 @@ const NostrEventsTable: React.FC = () => {
       title: 'Link',
       dataIndex: 'link',
       key: 'link',
-      render: (text: string) => {
-        if (text && text !== '-') {
-          const isOnionAddress = text.toLowerCase().includes('.onion');
+      render: (text: string, record: EventTableData) => {
+        const knownPubKey = allowedPubkeys.includes(record.pubkey);
 
-          if (isOnionAddress) {
-            return (
-              <a
-                href="#"
-                onClick={e => {
-                  e.preventDefault();
-                  setCurrentOnionAddress(text);
-                  setOnionModalVisible(true);
-                }}
-                title={text}
-              >
-                <ExportOutlined style={{ fontSize: '16px' }} />
-              </a>
-            );
+        if (knownPubKey) {
+          if (text && text !== '-') {
+            const isOnionAddress = text.toLowerCase().includes('.onion');
+
+            if (isOnionAddress) {
+              return (
+                <a
+                  href="#"
+                  onClick={e => {
+                    e.preventDefault();
+                    setCurrentOnionAddress(text);
+                    setOnionModalVisible(true);
+                  }}
+                  title={text}
+                >
+                  <ExportOutlined style={{ fontSize: '16px' }} />
+                </a>
+              );
+            } else {
+              return (
+                <a href={text} target="_blank" rel="noopener noreferrer" title={text}>
+                  <ExportOutlined style={{ fontSize: '16px' }} />
+                </a>
+              );
+            }
           } else {
-            return (
-              <a href={text} target="_blank" rel="noopener noreferrer" title={text}>
-                <ExportOutlined style={{ fontSize: '16px' }} />
-              </a>
-            );
+            <a
+              href={`https://njump.me/${record.pubkey}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={text}
+            >
+              <ExportOutlined style={{ fontSize: '16px' }} />
+            </a>;
           }
         } else {
           return '-';
