@@ -550,16 +550,7 @@ const NostrEventsTable: React.FC = () => {
               );
             }
           } else {
-            return (
-              <a
-                href={`https://njump.me/${nip19.npubEncode(record.pubkey)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={text}
-              >
-                <ExportOutlined style={{ fontSize: '16px' }} />
-              </a>
-            )
+            return '-'
           }
         } else {
           return (
