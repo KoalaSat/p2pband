@@ -211,7 +211,14 @@ const NostrEventsTable: React.FC = () => {
   const getUniqueSources = () => {
     const sources = new Set<string>();
     tableEvents.forEach(event => {
-      if (event.source && event.source !== '-') {
+      let isAllowedSource = false;
+      if (webOfTrust) {
+        isAllowedSource = !!webOfTrustKeys?.includes(event.pubkey);
+      } else {
+        isAllowedSource = !!allowedPubkeys?.includes(event.pubkey);
+      }
+
+      if (isAllowedSource && event.source && event.source !== '-') {
         sources.add(event.source);
       }
     });
