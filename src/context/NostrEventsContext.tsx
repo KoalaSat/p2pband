@@ -50,7 +50,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   const [webOfTrust, setWebOfTrust] = useState<boolean>(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [relays] = useState<string[]>([
-    'wss://nostr.satstralia.com',
+    'wss://nostr.robosats.org',
     'wss://relay.damus.io',
     'wss://relay.snort.social',
     'wss://nos.lol',
