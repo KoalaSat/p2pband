@@ -38,7 +38,7 @@
 .login-container {
   width: 100%;
   text-align: center;
-  padding: 10px;
+  padding: 5px 10px;
 }
 
 .login-button {
@@ -47,7 +47,7 @@
   color: #000;
   font-weight: bold;
   box-shadow: 0 0 10px rgba(60, 247, 60, 0.5);
-  margin: 10px;
+  margin: 0 10px;
 }
 
 .error-message {

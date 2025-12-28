@@ -72,7 +72,6 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       // Define the filter for kind 38383 events
       const filter: Filter = {
         kinds: [38383],
-        '#s': ['pending'],
       };
 
       // Subscribe to events
@@ -113,16 +112,12 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     }
   };
 
-  const removeEvent = (dTag: string) => {
+  const removeEvent = (eventId: string) => {
     setEvents(events => {
-      return events.filter(e => {
-        const tag = e.tags.find(tag => tag[0] === 'd');
-        if (!tag?.[1]) {
-          setEventsCount(events.length - 1);
-          return true;
-        }
-        return dTag !== tag[1];
-      });
+      const filteredEvents = events.filter(e => e.id !== eventId);
+
+      setEventsCount(() => filteredEvents.length);
+      return filteredEvents;
     });
   };
 
