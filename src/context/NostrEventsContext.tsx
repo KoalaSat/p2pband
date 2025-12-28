@@ -80,12 +80,13 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
       pool.subscribeMany(relays, [filter], {
         id: 'p2pBandOrders',
         onevent(event: Event) {
+          const networkTag = event.tags.find(tag => tag[0] === 'network');
           const expirationTag = event.tags.find(tag => tag[0] === 'expiration');
           const statusTag = event.tags.find(tag => tag[0] === 's') ?? [];
           const premiumTag = event.tags.find(tag => tag[0] === 'premium') ?? [];
           const premium = premiumTag[1] ? parseInt(premiumTag[1], 10) : 100;
 
-          if (premium > 40 || premium < -40 || !expirationTag) {
+          if (premium > 40 || premium < -40 || !expirationTag || networkTag?.[1] !== 'mainnet') {
             return;
           }
 
