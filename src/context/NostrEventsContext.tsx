@@ -30,6 +30,8 @@ interface NostrEventsProviderProps {
 }
 
 export const allowedPubkeys = [
+  '40d33962fdf26e0910805f36a3a96b239cf93b95d4a3e6dd779f1ea3ff9b0866',
+  'e185c2ad0b87b3207ac2b96d6b8fb1ff10fbf25f93eef4d04fb6dbb9039f19fb',
   'ded3dc02a1a9b61ce59d11f496539cb3fd15f00326a16f47e5f8d76baba24bdb',
   '95521a33ba34f5924464f425e81b896b1aa9069796a778368ed053e3612c509b',
   '7af6f7cfc3bfdf8aa65df2465aa7841096fa8ee6b2d4d14fc43d974e5db9ab96',
