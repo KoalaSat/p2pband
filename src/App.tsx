@@ -5,6 +5,7 @@ import { ConfigProvider, theme } from 'antd';
 import { NostrEventsProvider } from './context/NostrEventsContext';
 import Header from 'components/Header';
 import NostrLogin from './components/NostrLogin';
+import DonationButton from './components/DonationButton';
 
 function App() {
   return (
