@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
-import { Button, Modal, Space, Typography, InputNumber, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Button, Modal, Space, Typography, InputNumber, message, Progress } from 'antd';
 import { HeartOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { QRCodeSVG } from 'qrcode.react';
+import { SimplePool } from 'nostr-tools';
+import { Event } from 'nostr-tools/lib/types/core';
+import { useNostrEvents } from '../context/NostrEventsContext';
 
 const { Title, Paragraph } = Typography;
+
+const DEVELOPER_PUBKEY = '5b7e291df10b60da4d71ea99142a0f3e0eb83f20c2f122efe8ee633e7c90e2ab';
+const MONTHLY_GOAL_SATS = 15000;
 
 interface DonationModalProps {
   visible: boolean;
   onClose: () => void;
   onLNInvoice: () => void;
   onZapDeveloper: () => void;
+  monthlyTotal: number;
+  loading: boolean;
 }
 
 const DonationModal: React.FC<DonationModalProps> = ({
@@ -17,7 +25,11 @@ const DonationModal: React.FC<DonationModalProps> = ({
   onClose,
   onLNInvoice,
   onZapDeveloper,
+  monthlyTotal,
+  loading,
 }) => {
+  const progressPercent = Math.min((monthlyTotal / MONTHLY_GOAL_SATS) * 100, 100);
+
   return (
     <Modal
       title={
@@ -47,12 +59,50 @@ const DonationModal: React.FC<DonationModalProps> = ({
           Your support helps maintain and improve this project. Choose your preferred donation
           method:
         </Paragraph>
+
+        {/* Monthly Goal Section */}
+        <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+          <Paragraph style={{ color: '#41f4f4', fontWeight: 'bold', marginBottom: '10px' }}>
+            <strong>[⚡] MONTHLY GOAL:</strong>
+          </Paragraph>
+          <div style={{ marginBottom: '8px' }}>
+            <Progress
+              percent={progressPercent}
+              strokeColor={{
+                '0%': '#3cf73c',
+                '100%': '#41f4f4',
+              }}
+              trailColor="#1a1a1a"
+              status={loading ? 'active' : 'normal'}
+              showInfo={false}
+            />
+          </div>
+          <Paragraph
+            style={{
+              fontFamily: 'Roboto Mono, Share Tech Mono, monospace',
+              fontSize: '14px',
+              color: '#3cf73c',
+              textShadow: '0 0 1px rgba(60, 247, 60, 0.2)',
+              marginTop: '8px',
+            }}
+          >
+            {loading ? (
+              'Loading...'
+            ) : (
+              <>
+                {monthlyTotal.toLocaleString()} / {MONTHLY_GOAL_SATS.toLocaleString()} sats (
+                {progressPercent.toFixed(1)}%)
+              </>
+            )}
+          </Paragraph>
+        </div>
+
         <Space direction="vertical" style={{ width: '100%', marginTop: '20px' }}>
-          <Button type="primary" onClick={onLNInvoice} block>
-            {'// GENERATE LN INVOICE'}
-          </Button>
-          <Button onClick={onZapDeveloper} block>
+          <Button type="primary" onClick={onZapDeveloper} block>
             {'// ZAP DEVELOPER'}
+          </Button>
+          <Button onClick={onLNInvoice} block>
+            {'// GENERATE LN INVOICE'}
           </Button>
         </Space>
       </div>
@@ -254,6 +304,87 @@ const InvoiceFormModal: React.FC<InvoiceFormModalProps> = ({ visible, onClose, o
 const DonationButton: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [monthlyTotal, setMonthlyTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const { relays } = useNostrEvents();
+
+  // Fetch monthly zaps when component mounts or modal opens
+  useEffect(() => {
+    if (modalVisible) {
+      fetchMonthlyZaps();
+    }
+  }, [modalVisible]);
+
+  const fetchMonthlyZaps = async () => {
+    setLoading(true);
+    try {
+      console.log('Fetching monthly zaps from relays:', relays);
+      const pool = new SimplePool();
+
+      // Calculate timestamp for the start of this month
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startTimestamp = Math.floor(startOfMonth.getTime() / 1000);
+
+      console.log('Querying for zaps since:', new Date(startTimestamp * 1000).toISOString());
+
+      // Fetch zap events (kind 9735) for the developer's pubkey
+      const zapEvents = await pool.querySync(
+        relays,
+        {
+          kinds: [9735],
+          '#p': [DEVELOPER_PUBKEY],
+          since: startTimestamp,
+        },
+        {
+          id: 'monthlyDonations',
+        }
+      );
+
+      console.log('Received zap events:', zapEvents.length);
+
+      // Calculate total satoshis from zap events
+      let totalSats = 0;
+      zapEvents.forEach((event: Event) => {
+        // Zap receipts contain the amount in the bolt11 tag
+        const bolt11Tag = event.tags.find(tag => tag[0] === 'bolt11');
+        if (bolt11Tag && bolt11Tag[1]) {
+          // Parse the amount from the bolt11 invoice
+          const amountMatch = bolt11Tag[1].match(/lnbc(\d+)([munp]?)/i);
+          if (amountMatch) {
+            let amount = parseInt(amountMatch[1], 10);
+            const unit = amountMatch[2]?.toLowerCase();
+
+            // Convert to satoshis based on unit
+            if (unit === 'n') {
+              // nano-bitcoin = 0.1 satoshi
+              amount = amount / 10;
+            } else if (unit === 'u') {
+              // micro-bitcoin = 100 satoshis
+              amount = amount * 100;
+            } else if (unit === 'm') {
+              // milli-bitcoin = 100,000 satoshis
+              amount = amount * 100000;
+            } else if (unit === 'p') {
+              // pico-bitcoin = 0.0001 satoshi
+              amount = amount / 10000;
+            }
+            // If no unit, it's in bitcoin (very unlikely for zaps)
+
+            totalSats += Math.floor(amount);
+          }
+        }
+      });
+
+      console.log('Total satoshis calculated:', totalSats);
+      setMonthlyTotal(totalSats);
+    } catch (error) {
+      console.error('Error fetching monthly zaps:', error);
+      setMonthlyTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenModal = () => {
     setModalVisible(true);
@@ -277,7 +408,7 @@ const DonationButton: React.FC = () => {
 
   const handleZapDeveloper = () => {
     window.open(
-      'https://njump.me/npub1v3tgrwwsv7c6xckyhm5dmluc05jxd4yeqhpxew87chn0kua0tjzqc6yvjh',
+      'https://njump.me/npub1tdlzj803pdsd5nt3a2v3g2s08c8ts0eqctcj9mlgae3nulysu24svv9s5n',
       '_blank'
     );
     setModalVisible(false);
@@ -307,6 +438,8 @@ const DonationButton: React.FC = () => {
         onClose={handleCloseModal}
         onLNInvoice={handleLNInvoice}
         onZapDeveloper={handleZapDeveloper}
+        monthlyTotal={monthlyTotal}
+        loading={loading}
       />
       <InvoiceFormModal
         visible={showInvoiceForm}
