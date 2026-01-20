@@ -588,7 +588,7 @@ const NostrEventsTable: React.FC = () => {
         onDownloadTor={handleDownloadTor}
       />
 
-      {ratesLoading ? (
+      {ratesLoading && eventsCount < 50 ? (
         <div
           style={{
             textAlign: 'center',
