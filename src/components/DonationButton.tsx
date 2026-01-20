@@ -193,7 +193,7 @@ const ZapModal: React.FC<ZapModalProps> = ({ visible, onClose, onBack }) => {
         tags: [
           ['p', DEVELOPER_PUBKEY], // recipient pubkey
           ['amount', (amount * 1000).toString()], // amount in millisats
-          ['relays', ...relays.slice(0, 5)], // relays where zap receipt should be published
+          ['relays', ...relays], // relays where zap receipt should be published
         ],
         content: '', // optional comment
         pubkey: pubkey || '',
@@ -236,9 +236,7 @@ const ZapModal: React.FC<ZapModalProps> = ({ visible, onClose, onBack }) => {
         await (window.webln as any).enable();
         const paymentResult = await (window.webln as any).sendPayment(invoiceData.pr);
         console.log('Payment successful!', paymentResult);
-        message.success(
-          `Zap of ${amount} sats sent successfully!`
-        );
+        message.success(`Zap of ${amount} sats sent successfully!`);
         handleReset();
         onClose();
       } else {
