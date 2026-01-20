@@ -186,17 +186,20 @@ const ZapModal: React.FC<ZapModalProps> = ({ visible, onClose, onBack }) => {
       }
 
       // Step 2: Create the zap request event (kind 9734)
+      // This request will be included in the invoice and used by the provider to create the zap receipt
       const zapRequestEvent: UnsignedEvent = {
         kind: 9734,
         created_at: Math.floor(Date.now() / 1000),
         tags: [
-          ['p', DEVELOPER_PUBKEY],
+          ['p', DEVELOPER_PUBKEY], // recipient pubkey
           ['amount', (amount * 1000).toString()], // amount in millisats
-          ['relays', ...relays.slice(0, 3)], // include some relays
+          ['relays', ...relays.slice(0, 5)], // relays where zap receipt should be published
         ],
-        content: '',
+        content: '', // optional comment
         pubkey: pubkey || '',
       };
+
+      console.log('Creating zap request:', zapRequestEvent);
 
       // Step 3: Sign the zap request with NIP-07
       if (!window.nostr) {
@@ -204,12 +207,15 @@ const ZapModal: React.FC<ZapModalProps> = ({ visible, onClose, onBack }) => {
       }
 
       const signedZapRequest = await window.nostr.signEvent(zapRequestEvent);
+      console.log('Signed zap request:', signedZapRequest);
 
       // Step 4: Request the invoice with the zap request
       const amountMillisats = amount * 1000;
       const callbackUrl = new URL(lnurlData.callback);
       callbackUrl.searchParams.append('amount', amountMillisats.toString());
       callbackUrl.searchParams.append('nostr', JSON.stringify(signedZapRequest));
+
+      console.log('Requesting zap invoice from:', callbackUrl.toString());
 
       const invoiceResponse = await fetch(callbackUrl.toString());
 
@@ -218,6 +224,7 @@ const ZapModal: React.FC<ZapModalProps> = ({ visible, onClose, onBack }) => {
       }
 
       const invoiceData = await invoiceResponse.json();
+      console.log('Invoice response:', invoiceData);
 
       if (invoiceData.status === 'ERROR') {
         throw new Error(invoiceData.reason || 'Failed to generate zap invoice');
@@ -225,16 +232,21 @@ const ZapModal: React.FC<ZapModalProps> = ({ visible, onClose, onBack }) => {
 
       // Step 5: Send the invoice to the wallet extension
       if (window.webln) {
+        console.log('Paying invoice with WebLN...');
         await (window.webln as any).enable();
-        await (window.webln as any).sendPayment(invoiceData.pr);
-        message.success(`Zap of ${amount} sats sent successfully!`);
+        const paymentResult = await (window.webln as any).sendPayment(invoiceData.pr);
+        console.log('Payment successful!', paymentResult);
+        message.success(
+          `Zap of ${amount} sats sent successfully!`
+        );
         handleReset();
         onClose();
       } else {
         // Fallback: copy invoice to clipboard
+        console.log('WebLN not available, copying invoice to clipboard');
         navigator.clipboard.writeText(invoiceData.pr);
         message.success(
-          'Zap invoice copied to clipboard! Please pay it with your Lightning wallet.'
+          'Zap invoice copied to clipboard! Pay it with your Lightning wallet and the zap receipt will be published to Nostr.'
         );
         handleReset();
       }
@@ -635,7 +647,6 @@ const DonationButton: React.FC = () => {
             console.log('Received zap events:', eventCount);
             console.log('Total satoshis calculated:', totalSats);
             setLoading(false);
-            sub.close();
           },
         }
       );
