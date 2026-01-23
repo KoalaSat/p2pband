@@ -57,6 +57,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     'wss://relay.snort.social',
     'wss://relay.mostro.network',
     'wss://relay.primal.net',
+    'wss://nos.lol',
   ]);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
   const [eventsCount, setEventsCount] = useState<number>(0);
