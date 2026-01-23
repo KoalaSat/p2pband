@@ -2,7 +2,7 @@
 
 .nostr-login-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px auto;
@@ -39,6 +39,10 @@
   width: 100%;
   text-align: center;
   padding: 5px 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
 }
 
 .login-button {
@@ -48,6 +52,7 @@
   font-weight: bold;
   box-shadow: 0 0 10px rgba(60, 247, 60, 0.5);
   margin: 0 10px;
+  margin-top: 5px;
 }
 
 .error-message {

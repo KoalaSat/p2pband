@@ -120,7 +120,7 @@ const DonationModal: React.FC<DonationModalProps> = ({
         </div>
 
         <Space direction="vertical" style={{ width: '100%', marginTop: '20px' }}>
-          {isLoggedIn ? (
+          {isLoggedIn || window.nostr ? (
             <Button type="primary" icon={<ThunderboltOutlined />} onClick={onZapWithNostr} block>
               {'// ZAP WITH NOSTR'}
             </Button>
@@ -696,17 +696,8 @@ const DonationButton: React.FC = () => {
       <Button
         icon={<HeartOutlined />}
         onClick={handleOpenModal}
-        style={{
-          bottom: '-5px',
-          zIndex: 1000,
-          height: '50px',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          boxShadow: '0 0 20px rgba(60, 247, 60, 0.3)',
-        }}
+        type="primary"
+        className="login-button"
       >
         {'// DONATE'}
       </Button>

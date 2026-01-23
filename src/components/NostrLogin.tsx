@@ -7,6 +7,7 @@ import { useNostrEvents } from '../context/NostrEventsContext';
 import CreateOrder from './CreateOrder';
 import MyOrders from './MyOrders';
 import { SimplePool } from 'nostr-tools';
+import DonationButton from './DonationButton';
 
 // Interface for NIP-07 window extension
 interface NostrWindow extends Window {
@@ -220,7 +221,6 @@ const NostrLogin: React.FC = () => {
           </Tag>
           <div className="button-container">
             <Button
-              size="small"
               type="text"
               danger
               onClick={() => {
@@ -231,7 +231,6 @@ const NostrLogin: React.FC = () => {
               Create new order
             </Button>
             <Button
-              size="small"
               type="text"
               danger
               onClick={() => {
@@ -242,7 +241,6 @@ const NostrLogin: React.FC = () => {
               My orders
             </Button>
             <Button
-              size="small"
               type="text"
               danger
               onClick={() => {
@@ -255,6 +253,7 @@ const NostrLogin: React.FC = () => {
             >
               Disconnect
             </Button>
+            <DonationButton />
           </div>
         </div>
       ) : (
@@ -273,6 +272,7 @@ const NostrLogin: React.FC = () => {
               {error}
             </Typography.Text>
           )}
+          <DonationButton />
         </div>
       )}
     </div>

@@ -905,9 +905,6 @@ const NostrEventsTable: React.FC = () => {
             </a>
           </small>
         </div>
-        <div>
-          <DonationButton />
-        </div>
       </div>
       <style>
         {`
