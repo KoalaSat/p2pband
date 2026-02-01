@@ -51,6 +51,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   const [events, setEvents] = useState<Map<string, Event | null>>(new Map<string, Event | null>());
   const [relayPlatforms] = useState<Record<string, string[]>>({
     'wss://nostr.robosats.org': ['robosats', 'nostr'],
+    'wss://freelay.sovbit.host': ['robosats', 'peach', 'nostr'],
     'wss://relay.damus.io': ['lnp2pbot', 'peach', 'nostr'],
     'wss://relay.snort.social': ['hodlhodl', 'lnp2pbot', 'nostr'],
     'wss://relay.mostro.network': ['mostro', 'nostr'],
