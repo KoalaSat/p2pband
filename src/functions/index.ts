@@ -57,9 +57,11 @@ export const calculateAverageRates = (
 
 // Function to process raw Nostr events into the format needed for the table
 export const processEvent = (
-  event: Event,
+  event: Event | null,
   exchangeRates: Record<string, number>
 ): EventTableData | null => {
+  if (!event) return null;
+
   try {
     // Find the required tags
     const sourceTag = event.tags.find(tag => tag[0] === 'y');

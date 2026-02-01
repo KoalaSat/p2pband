@@ -598,7 +598,7 @@ const DonationButton: React.FC = () => {
       let eventCount = 0;
 
       // Subscribe to zap events (kind 9735) for the developer's pubkey
-      const sub = pool.subscribeMany(
+      pool.subscribeMany(
         relays,
         [
           {
