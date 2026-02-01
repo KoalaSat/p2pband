@@ -33,12 +33,17 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
 
   // Filter and process events that match the user's pubkey
   const myOrders = useMemo(() => {
-    if (!pubkey || !events.length) return [];
+    if (!pubkey || events.size === 0) return [];
 
-    return events
-      .filter(event => event.pubkey === pubkey)
-      .map(event => processEvent(event, {}))
-      .filter(event => event !== null) as EventTableData[];
+    const ordersArray: EventTableData[] = [];
+    events.forEach(event => {
+      if (event && event.pubkey === pubkey) {
+        const processedEvent = processEvent(event, {});
+        if (processedEvent) ordersArray.push(processedEvent);
+      }
+    });
+
+    return ordersArray;
   }, [events, pubkey, eventsCount]);
 
   // Render premium tag with color based on value
@@ -63,12 +68,18 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
       return;
     }
 
-    const event = events.find(e => e.id === orderId);
+    let foundEvent: Event | null = null;
+    events.forEach((e: Event | null) => {
+      if (e && e.id === orderId) {
+        foundEvent = e;
+      }
+    });
 
-    if (event && pubkey) {
+    if (foundEvent !== null && pubkey) {
+      const eventToDelete: Event = foundEvent;
       const now = Math.floor(Date.now() / 1000);
-      const tags = event.tags.filter(t => t[0] !== 's');
-      const dTag = tags.find(tag => tag[0] === 'd');
+      const tags = eventToDelete.tags.filter((t: string[]) => t[0] !== 's');
+      const dTag = tags.find((tag: string[]) => tag[0] === 'd');
       tags.push(['s', 'success']);
 
       const nostrEvent: UnsignedEvent = {

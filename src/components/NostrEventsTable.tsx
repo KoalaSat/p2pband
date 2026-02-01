@@ -23,7 +23,6 @@ import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
 import { FilterValue, SorterResult } from 'antd/es/table/interface';
 import { nip19 } from 'nostr-tools';
-import DonationButton from './DonationButton';
 
 const { Title } = Typography;
 
@@ -370,7 +369,7 @@ const NostrEventsTable: React.FC = () => {
   useEffect(() => {
     if (
       (!ratesLoading && Object.keys(exchangeRates).length > 0) ||
-      (!eventsLoading && Object.keys(events).length > 0)
+      (!eventsLoading && events.size > 0)
     ) {
       const updatedEvents: EventTableData[] = [];
 
