@@ -18,7 +18,7 @@ import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
 import OnionAddressWarning from './OnionAddressWarning';
 import * as isoCountryCurrency from 'iso-country-currency';
-import { processEvent, updateExchangeRates } from 'functions';
+import { processEvent, updateExchangeRates, fetchValidHodlHodlOfferIds } from 'functions';
 import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
 import { FilterValue, SorterResult } from 'antd/es/table/interface';
@@ -124,6 +124,7 @@ const NostrEventsTable: React.FC = () => {
   const [ratesLoading, setRatesLoading] = useState<boolean>(true);
   const [rateSources, setRateSources] = useState<string[]>([]);
   const [sortedInfo, setSortedInfo] = useState<SorterResult<SorterInfo>>({});
+  const [hodlHodlValidIds, setHodlHodlValidIds] = useState<Set<string> | null>(null);
 
   // Filter states
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -358,6 +359,15 @@ const NostrEventsTable: React.FC = () => {
       );
     }
 
+    // Filter out HodlHodl offers that are no longer active
+    if (hodlHodlValidIds !== null) {
+      result = result.filter(event => {
+        if (event.source !== 'hodlhodl') return true;
+        const match = event.link.match(/hodlhodl\.com\/offers\/([^?/]+)/);
+        return match ? hodlHodlValidIds.has(match[1]) : true;
+      });
+    }
+
     // Re-apply active sort so incoming events don't disrupt the user's chosen order
     const sortFn = getSortFunction(sortedInfo);
     if (sortFn) result = [...result].sort(sortFn);
@@ -369,6 +379,11 @@ const NostrEventsTable: React.FC = () => {
   // Main effect to coordinate data loading
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Fetch valid HodlHodl offer IDs in background to filter out inactive offers
+  useEffect(() => {
+    fetchValidHodlHodlOfferIds().then(setHodlHodlValidIds);
   }, []);
 
   // Effect to update prices when exchange rates change
@@ -393,7 +408,7 @@ const NostrEventsTable: React.FC = () => {
   // Effect to filter events when filter states or events change
   useEffect(() => {
     calculateFilteredevents(tableEvents);
-  }, [sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, webOfTrust]);
+  }, [sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, webOfTrust, hodlHodlValidIds]);
 
   // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;

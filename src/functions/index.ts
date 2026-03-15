@@ -230,6 +230,33 @@ export const calculateBtcPrice = (
   }
 };
 
+export const fetchValidHodlHodlOfferIds = async (): Promise<Set<string>> => {
+  const validIds = new Set<string>();
+  const limit = 100;
+  let offset = 0;
+
+  try {
+    while (true) {
+      const response = await fetch(
+        `https://hodlhodl.com/api/v1/offers?filters%5Basset_code%5D=BTC&pagination%5Blimit%5D=${limit}&pagination%5Boffset%5D=${offset}`
+      );
+      if (!response.ok) break;
+
+      const data = await response.json();
+      if (!data.offers || data.offers.length === 0) break;
+
+      data.offers.forEach((offer: { id: string }) => validIds.add(offer.id));
+
+      if (data.offers.length < limit) break;
+      offset += limit;
+    }
+  } catch (error) {
+    console.error('Error fetching HodlHodl active offers:', error);
+  }
+
+  return validIds;
+};
+
 export const updateExchangeRates: () => Promise<[Record<string, number>, string[]]> = async () => {
   console.log('Fetching exchange rates from multiple sources...');
 
