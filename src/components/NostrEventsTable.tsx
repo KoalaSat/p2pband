@@ -169,6 +169,29 @@ const NostrEventsTable: React.FC = () => {
     setCurrentPage(page);
   };
 
+  // Returns a comparator function for the given sorter, or null if no sort is active
+  const getSortFunction = (
+    sorter: SorterResult<SorterInfo>
+  ): ((a: EventTableData, b: EventTableData) => number) | null => {
+    if (!sorter.columnKey || !sorter.order) return null;
+    return (a: EventTableData, b: EventTableData) => {
+      if (sorter.columnKey === 'premium') {
+        const premiumA = a.premium ? parseFloat(a.premium) : 0;
+        const premiumB = b.premium ? parseFloat(b.premium) : 0;
+        return sorter.order === 'ascend' ? premiumA - premiumB : premiumB - premiumA;
+      } else if (sorter.columnKey === 'bond') {
+        const bondA = a.bond ? parseFloat(a.bond) : 0;
+        const bondB = b.bond ? parseFloat(b.bond) : 0;
+        return sorter.order === 'ascend' ? bondA - bondB : bondB - bondA;
+      } else if (sorter.columnKey === 'created_at') {
+        return sorter.order === 'ascend'
+          ? a.created_at - b.created_at
+          : b.created_at - a.created_at;
+      }
+      return 0;
+    };
+  };
+
   // Handle table change for sorting
   const handleTableChange = (
     _pagination: TablePaginationConfig,
@@ -178,32 +201,11 @@ const NostrEventsTable: React.FC = () => {
     setSortedInfo(sorter);
 
     if (sorter && sorter.columnKey) {
-      // Create sorting function based on the column that was clicked
-      const sortFunction = (a: EventTableData, b: EventTableData) => {
-        if (sorter.columnKey === 'premium') {
-          const premiumA = a.premium ? parseFloat(a.premium) : 0;
-          const premiumB = b.premium ? parseFloat(b.premium) : 0;
-          return sorter.order === 'ascend' ? premiumA - premiumB : premiumB - premiumA;
-        } else if (sorter.columnKey === 'bond') {
-          const bondA = a.bond ? parseFloat(a.bond) : 0;
-          const bondB = b.bond ? parseFloat(b.bond) : 0;
-          return sorter.order === 'ascend' ? bondA - bondB : bondB - bondA;
-        } else if (sorter.columnKey === 'created_at') {
-          // Default sorting by timestamp (newest first or oldest first)
-          return sorter.order === 'ascend'
-            ? a.created_at - b.created_at
-            : b.created_at - a.created_at;
-        }
-        return 0;
-      };
-
-      // Sort both the original and filtered events
-      const sortedEvents = [...tableEvents].sort(sortFunction);
-      const sortedFilteredEvents = [...filteredEvents].sort(sortFunction);
-
-      // Update both state variables
-      setTableEvents(sortedEvents);
-      setFilteredEvents(sortedFilteredEvents);
+      const sortFn = getSortFunction(sorter);
+      if (sortFn) {
+        setTableEvents(prev => [...prev].sort(sortFn));
+        setFilteredEvents(prev => [...prev].sort(sortFn));
+      }
     }
   };
 
@@ -355,6 +357,10 @@ const NostrEventsTable: React.FC = () => {
           event.paymentMethods.toLowerCase().includes(paymentMethodFilter.toLowerCase())
       );
     }
+
+    // Re-apply active sort so incoming events don't disrupt the user's chosen order
+    const sortFn = getSortFunction(sortedInfo);
+    if (sortFn) result = [...result].sort(sortFn);
 
     setFilteredEvents(result);
     setTotalEvents(result.length);
