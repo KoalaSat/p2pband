@@ -18,7 +18,7 @@ import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
 import OnionAddressWarning from './OnionAddressWarning';
 import * as isoCountryCurrency from 'iso-country-currency';
-import { processEvent, updateExchangeRates, fetchValidHodlHodlOfferIds } from 'functions';
+import { processEvent, updateExchangeRates, fetchValidHodlHodlOfferIds, fetchValidMostroDTags } from 'functions';
 import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
 import { FilterValue, SorterResult } from 'antd/es/table/interface';
@@ -29,6 +29,7 @@ const { Title } = Typography;
 // Define the structure of the processed event data for the table
 export interface EventTableData {
   id: string;
+  dTag?: string;
   source: string;
   is: string;
   amount: string;
@@ -125,6 +126,7 @@ const NostrEventsTable: React.FC = () => {
   const [rateSources, setRateSources] = useState<string[]>([]);
   const [sortedInfo, setSortedInfo] = useState<SorterResult<SorterInfo>>({});
   const [hodlHodlValidIds, setHodlHodlValidIds] = useState<Set<string> | null>(null);
+  const [mostroValidDTags, setMostroValidDTags] = useState<Set<string> | null>(null);
 
   // Filter states
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -368,6 +370,16 @@ const NostrEventsTable: React.FC = () => {
       });
     }
 
+    // Filter out orphaned Mostro orders not found on authoritative relays
+    if (mostroValidDTags !== null) {
+      const mostroSources = ['mostro', 'NostroMostro', 'Kmbalache', 'MostroColombia'];
+      result = result.filter(event => {
+        if (!mostroSources.includes(event.source)) return true;
+        if (!event.dTag) return true;
+        return mostroValidDTags.has(event.dTag);
+      });
+    }
+
     // Re-apply active sort so incoming events don't disrupt the user's chosen order
     const sortFn = getSortFunction(sortedInfo);
     if (sortFn) result = [...result].sort(sortFn);
@@ -386,6 +398,11 @@ const NostrEventsTable: React.FC = () => {
     fetchValidHodlHodlOfferIds().then(setHodlHodlValidIds);
   }, []);
 
+  // Fetch valid Mostro d-tags from authoritative relays to filter out orphaned orders
+  useEffect(() => {
+    fetchValidMostroDTags().then(setMostroValidDTags);
+  }, []);
+
   // Effect to update prices when exchange rates change
   useEffect(() => {
     if (
@@ -394,9 +411,12 @@ const NostrEventsTable: React.FC = () => {
     ) {
       const updatedEvents: EventTableData[] = [];
 
-      events.forEach(event => {
+      events.forEach((event, dTag) => {
         const data = processEvent(event, exchangeRates);
-        if (data) updatedEvents.push(data);
+        if (data) {
+          data.dTag = dTag;
+          updatedEvents.push(data);
+        }
       });
 
       setTableEvents(updatedEvents);
@@ -408,7 +428,7 @@ const NostrEventsTable: React.FC = () => {
   // Effect to filter events when filter states or events change
   useEffect(() => {
     calculateFilteredevents(tableEvents);
-  }, [sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, webOfTrust, hodlHodlValidIds]);
+  }, [sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, webOfTrust, hodlHodlValidIds, mostroValidDTags]);
 
   // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;

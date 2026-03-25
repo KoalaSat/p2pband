@@ -1,5 +1,7 @@
 import { EventTableData } from 'components/NostrEventsTable';
 import { Event } from 'nostr-tools/lib/types/core';
+import { SimplePool } from 'nostr-tools';
+import { mostroPubkeys } from 'context/NostrEventsContext';
 
 // Function to format amount values
 export const formatAmount = (value: string): string => {
@@ -83,6 +85,16 @@ export const processEvent = (
       if (!isNaN(expirationTimestamp) && expirationTimestamp < currentTimestamp) {
         return null;
       }
+    }
+
+    // Distinguish between decentralized Mostro instances by pubkey
+    const mostroInstances: Record<string, string> = {
+      '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': 'NostroMostro',
+      '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a': 'Kmbalache',
+      '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b': 'MostroColombia',
+    };
+    if (sourceTag?.[1] === 'mostro' && mostroInstances[event.pubkey]) {
+      sourceTag[1] = mostroInstances[event.pubkey];
     }
 
     if (sourceTag?.[1] === 'robosats' && linkTag?.[1]) {
@@ -255,6 +267,41 @@ export const fetchValidHodlHodlOfferIds = async (): Promise<Set<string>> => {
   }
 
   return validIds;
+};
+
+// Each Mostro instance's authoritative relay is the source of truth for its pending orders.
+const mostroAuthRelays: Record<string, string[]> = {
+  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390': ['wss://relay.mostro.network'],
+  '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': ['wss://relay.kilombino.com'],
+  '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a': ['wss://relay.mostro.network'],
+  '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b': ['wss://relay.mostro.network'],
+};
+
+export const fetchValidMostroDTags = (): Promise<Set<string>> => {
+  const validDTags = new Set<string>();
+  const pool = new SimplePool();
+
+  const subscriptions = Object.entries(mostroAuthRelays).map(([pubkey, relays]) => {
+    return new Promise<void>((resolve) => {
+      pool.subscribe(relays, {
+        kinds: [38383],
+        '#s': ['pending'],
+        authors: [pubkey],
+      }, {
+        id: `p2pMostroValid-${pubkey.slice(0, 8)}`,
+        onevent(event: Event) {
+          const dTag = event.tags.find(t => t[0] === 'd')?.[1] ?? '';
+          if (dTag) validDTags.add(dTag);
+        },
+        oneose() {
+          resolve();
+        },
+      });
+      setTimeout(resolve, 15000);
+    });
+  });
+
+  return Promise.all(subscriptions).then(() => validDTags);
 };
 
 export const updateExchangeRates: () => Promise<[Record<string, number>, string[]]> = async () => {
