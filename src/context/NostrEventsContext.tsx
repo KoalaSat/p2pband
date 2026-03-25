@@ -29,6 +29,13 @@ interface NostrEventsProviderProps {
   children: ReactNode;
 }
 
+export const mostroPubkeys = [
+  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390', // Mostro
+  '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40', // Mostro: NostroMostro (España)
+  '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a', // Mostro: Kmbalache (Cuba)
+  '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b', // Mostro: MostroColombia (Colombia)
+];
+
 export const allowedPubkeys = [
   '40d33962fdf26e0910805f36a3a96b239cf93b95d4a3e6dd779f1ea3ff9b0866', // Robosats: Alice
   'ded3dc02a1a9b61ce59d11f496539cb3fd15f00326a16f47e5f8d76baba24bdb', // Robosats: FreedomSats
@@ -38,7 +45,7 @@ export const allowedPubkeys = [
   '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191', // Robosats: Temple of Sats
   'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e', // LNP2PBot
   'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2', // Peach
-  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390', // Mostro
+  ...mostroPubkeys,
   '273e7880d38d39a7fb238efcf8957a1b5b27e819127a8483e975416a0a90f8d2', // HodlHodl
 ];
 
@@ -55,6 +62,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     'wss://relay.damus.io': ['lnp2pbot', 'peach', 'nostr'],
     'wss://relay.snort.social': ['hodlhodl', 'lnp2pbot', 'nostr'],
     'wss://relay.mostro.network': ['mostro', 'nostr'],
+    'wss://relay.kilombino.com': ['mostro', 'nostr'],
     'wss://relay.primal.net': ['peach', 'hodlhodl', 'nostr'],
     'wss://nos.lol': ['lnp2pbot', 'mostro', 'nostr'],
   });
@@ -96,7 +104,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
             setEvents(events => {
               const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] ?? '';
               if (statusTag[1] !== 'pending') {
-                removeEvent(dTag);
+                events.delete(dTag);
               } else {
                 events.set(dTag, event);
               }
@@ -118,7 +126,8 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
   const removeEvent = (dTag: string) => {
     setEvents(m => {
-      m.set(dTag, null);
+      m.delete(dTag);
+      setEventsCount(m.size);
       return m;
     });
   };
