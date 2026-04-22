@@ -18,7 +18,12 @@ import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
 import OnionAddressWarning from './OnionAddressWarning';
 import * as isoCountryCurrency from 'iso-country-currency';
-import { processEvent, updateExchangeRates, fetchValidHodlHodlOfferIds, fetchValidMostroDTags } from 'functions';
+import {
+  processEvent,
+  updateExchangeRates,
+  fetchValidHodlHodlOfferIds,
+  fetchValidMostroDTags,
+} from 'functions';
 import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
 import { FilterValue, SorterResult } from 'antd/es/table/interface';
@@ -372,7 +377,14 @@ const NostrEventsTable: React.FC = () => {
 
     // Filter out orphaned Mostro orders not found on authoritative relays
     if (mostroValidDTags !== null) {
-      const mostroSources = ['mostro', 'NostroMostro', 'Kmbalache', 'MostroColombia'];
+      const mostroSources = [
+        'mostro',
+        'NostroMostro',
+        'Kmbalache',
+        'MostroColombia',
+        'MostroBolivia',
+        'MostroVenezuela',
+      ];
       result = result.filter(event => {
         if (!mostroSources.includes(event.source)) return true;
         if (!event.dTag) return true;
@@ -428,7 +440,15 @@ const NostrEventsTable: React.FC = () => {
   // Effect to filter events when filter states or events change
   useEffect(() => {
     calculateFilteredevents(tableEvents);
-  }, [sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, webOfTrust, hodlHodlValidIds, mostroValidDTags]);
+  }, [
+    sourceFilter,
+    typeFilter,
+    currencyFilter,
+    paymentMethodFilter,
+    webOfTrust,
+    hodlHodlValidIds,
+    mostroValidDTags,
+  ]);
 
   // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;
@@ -443,7 +463,7 @@ const NostrEventsTable: React.FC = () => {
       key: 'source',
       render: (text: string) => {
         // Try to load the image from public/assets with the naming convention {value}.small.png
-        const imagePath = `/assets/${text}.small.png`;
+        const imagePath = `${process.env.PUBLIC_URL}/assets/${text}.small.png`;
         return (
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <img

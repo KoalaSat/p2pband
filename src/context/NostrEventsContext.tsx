@@ -34,6 +34,8 @@ export const mostroPubkeys = [
   '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40', // Mostro: NostroMostro (España)
   '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a', // Mostro: Kmbalache (Cuba)
   '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b', // Mostro: MostroColombia (Colombia)
+  '00007cb3305fb972f5cc83f83a8fbca1e64e93c9d1369880a9fd62ef95d23f91', // Mostro: MostroBolivia (Bolivia)
+  '000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb', // Mostro: MostroVenezuela (Venezuela)
 ];
 
 export const allowedPubkeys = [
