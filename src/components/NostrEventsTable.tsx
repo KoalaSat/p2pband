@@ -418,6 +418,11 @@ const NostrEventsTable: React.FC = () => {
   // Fetch valid Mostro d-tags from authoritative relays to filter out orphaned orders
   useEffect(() => {
     fetchValidMostroDTags().then(setMostroValidDTags);
+    const interval = setInterval(
+      () => fetchValidMostroDTags().then(setMostroValidDTags),
+      2 * 60 * 1000
+    );
+    return () => clearInterval(interval);
   }, []);
 
   // Effect to update prices when exchange rates change
@@ -446,6 +451,7 @@ const NostrEventsTable: React.FC = () => {
   useEffect(() => {
     calculateFilteredevents(tableEvents);
   }, [
+    tableEvents,
     sourceFilter,
     typeFilter,
     currencyFilter,
