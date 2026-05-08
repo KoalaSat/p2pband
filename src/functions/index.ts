@@ -308,7 +308,10 @@ export const fetchValidMostroDTags = (): Promise<Set<string>> => {
           id: `p2pMostroValid-${pubkey.slice(0, 8)}`,
           onevent(event: Event) {
             const dTag = event.tags.find(t => t[0] === 'd')?.[1] ?? '';
-            if (dTag) validDTags.add(dTag);
+            // Key by pubkey+dTag so each Mostro instance's d-tags are
+            // only considered valid for that instance, not shared across
+            // all instances.
+            if (dTag) validDTags.add(`${event.pubkey}:${dTag}`);
           },
           oneose() {
             resolve();

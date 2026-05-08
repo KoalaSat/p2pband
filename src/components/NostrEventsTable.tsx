@@ -388,7 +388,7 @@ const NostrEventsTable: React.FC = () => {
       result = result.filter(event => {
         if (!mostroSources.includes(event.source)) return true;
         if (!event.dTag) return true;
-        return mostroValidDTags.has(event.dTag);
+        return mostroValidDTags.has(`${event.pubkey}:${event.dTag}`);
       });
     }
 
