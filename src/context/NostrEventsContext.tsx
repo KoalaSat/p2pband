@@ -74,6 +74,32 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   const [outboxRelays, setOutboxRelays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const mostroRelays = Object.keys(relayPlatforms).filter(r =>
+    relayPlatforms[r].includes('mostro')
+  );
+
+  const isExpired = (event: Event): boolean => {
+    const exp = event.tags.find(tag => tag[0] === 'expiration')?.[1];
+    if (!exp) return false;
+    const ts = parseInt(exp, 10);
+    return !isNaN(ts) && ts < Math.floor(Date.now() / 1000);
+  };
+
+  const handleMostroEvent = (event: Event) => {
+    const statusTag = event.tags.find(tag => tag[0] === 's') ?? [];
+    const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] ?? '';
+    if (!dTag) return;
+    setEvents(events => {
+      if (statusTag[1] !== 'pending' || isExpired(event)) {
+        events.delete(dTag);
+      } else {
+        events.set(dTag, event);
+      }
+      setEventsCount(events.size);
+      return events;
+    });
+  };
+
   // Function to load events from Nostr relays
   const loadEvents = () => {
     setEventsLoading(true);
@@ -105,7 +131,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
             setEvents(events => {
               const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] ?? '';
-              if (statusTag[1] !== 'pending') {
+              if (statusTag[1] !== 'pending' || isExpired(event)) {
                 events.delete(dTag);
               } else {
                 events.set(dTag, event);
@@ -124,6 +150,22 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
         setEventsLoading(false);
       }
     });
+
+    // Secondary subscription for Mostro pubkeys without #s filter so we receive
+    // cancellations and status updates that replace pending events on the relay.
+    try {
+      const pool = new SimplePool();
+      pool.subscribe(
+        mostroRelays,
+        { kinds: [38383], authors: mostroPubkeys },
+        {
+          id: 'p2pMostroUpdates',
+          onevent: handleMostroEvent,
+        }
+      );
+    } catch (error) {
+      console.error('Error subscribing to Mostro updates:', error);
+    }
   };
 
   const removeEvent = (dTag: string) => {
@@ -182,8 +224,33 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
   // Initial load of events
   useEffect(() => {
-    const cleanup = loadEvents();
-    return cleanup;
+    loadEvents();
+  }, []);
+
+  // Periodic sweep: drop events whose NIP-40 expiration has passed so they
+  // disappear from the UI even if the source relay never sends a replacement.
+  useEffect(() => {
+    const sweep = () => {
+      setEvents(prev => {
+        const now = Math.floor(Date.now() / 1000);
+        let changed = false;
+        const next = new Map(prev);
+        next.forEach((ev, dTag) => {
+          const exp = ev?.tags.find(t => t[0] === 'expiration')?.[1];
+          const ts = exp ? parseInt(exp, 10) : NaN;
+          if (!isNaN(ts) && ts < now) {
+            next.delete(dTag);
+            changed = true;
+          }
+        });
+        if (!changed) return prev;
+        setEventsCount(next.size);
+        return next;
+      });
+    };
+    sweep();
+    const id = setInterval(sweep, 30 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
