@@ -87,6 +87,18 @@ export const processEvent = (
       }
     }
 
+    // Mostro instances publish orders with a long NIP-40 expiration (~30 days)
+    // and republish the event whenever the maker is active. If created_at is
+    // older than the freshness window, the maker is effectively offline and
+    // the order is unreachable in practice — drop it.
+    const MOSTRO_FRESHNESS_S = 48 * 60 * 60;
+    if (sourceTag?.[1] === 'mostro') {
+      const ageS = Math.floor(Date.now() / 1000) - (event.created_at || 0);
+      if (ageS > MOSTRO_FRESHNESS_S) {
+        return null;
+      }
+    }
+
     // Distinguish between decentralized Mostro instances by pubkey
     const mostroInstances: Record<string, string> = {
       '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': 'NostroMostro',
