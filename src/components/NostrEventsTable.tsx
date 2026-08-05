@@ -23,6 +23,8 @@ import {
   updateExchangeRates,
   fetchValidHodlHodlOfferIds,
   fetchValidMostroDTags,
+  isMostroOrderValid,
+  MostroValidation,
 } from 'functions';
 import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
@@ -131,7 +133,7 @@ const NostrEventsTable: React.FC = () => {
   const [rateSources, setRateSources] = useState<string[]>([]);
   const [sortedInfo, setSortedInfo] = useState<SorterResult<SorterInfo>>({});
   const [hodlHodlValidIds, setHodlHodlValidIds] = useState<Set<string> | null>(null);
-  const [mostroValidDTags, setMostroValidDTags] = useState<Set<string> | null>(null);
+  const [mostroValidation, setMostroValidation] = useState<MostroValidation | null>(null);
 
   // Filter states
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -376,21 +378,7 @@ const NostrEventsTable: React.FC = () => {
     }
 
     // Filter out orphaned Mostro orders not found on authoritative relays
-    if (mostroValidDTags !== null) {
-      const mostroSources = [
-        'mostro',
-        'NostroMostro',
-        'Kmbalache',
-        'MostroColombia',
-        'MostroBolivia',
-        'MostroVenezuela',
-      ];
-      result = result.filter(event => {
-        if (!mostroSources.includes(event.source)) return true;
-        if (!event.dTag) return true;
-        return mostroValidDTags.has(`${event.pubkey}:${event.dTag}`);
-      });
-    }
+    result = result.filter(event => isMostroOrderValid(event, mostroValidation));
 
     // Re-apply active sort so incoming events don't disrupt the user's chosen order
     const sortFn = getSortFunction(sortedInfo);
@@ -417,9 +405,9 @@ const NostrEventsTable: React.FC = () => {
 
   // Fetch valid Mostro d-tags from authoritative relays to filter out orphaned orders
   useEffect(() => {
-    fetchValidMostroDTags().then(setMostroValidDTags);
+    fetchValidMostroDTags().then(setMostroValidation);
     const interval = setInterval(
-      () => fetchValidMostroDTags().then(setMostroValidDTags),
+      () => fetchValidMostroDTags().then(setMostroValidation),
       2 * 60 * 1000
     );
     return () => clearInterval(interval);
@@ -458,7 +446,7 @@ const NostrEventsTable: React.FC = () => {
     paymentMethodFilter,
     webOfTrust,
     hodlHodlValidIds,
-    mostroValidDTags,
+    mostroValidation,
   ]);
 
   // Calculate current page data from filtered events

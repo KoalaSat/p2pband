@@ -87,18 +87,6 @@ export const processEvent = (
       }
     }
 
-    // Mostro instances publish orders with a long NIP-40 expiration (~30 days)
-    // and republish the event whenever the maker is active. If created_at is
-    // older than the freshness window, the maker is effectively offline and
-    // the order is unreachable in practice — drop it.
-    const MOSTRO_FRESHNESS_S = 48 * 60 * 60;
-    if (sourceTag?.[1] === 'mostro') {
-      const ageS = Math.floor(Date.now() / 1000) - (event.created_at || 0);
-      if (ageS > MOSTRO_FRESHNESS_S) {
-        return null;
-      }
-    }
-
     // Distinguish between decentralized Mostro instances by pubkey
     const mostroInstances: Record<string, string> = {
       '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': 'NostroMostro',
@@ -303,38 +291,91 @@ const mostroAuthRelays: Record<string, string[]> = {
   ],
 };
 
-export const fetchValidMostroDTags = (): Promise<Set<string>> => {
-  const validDTags = new Set<string>();
+export interface MostroValidation {
+  // Instances whose authoritative relay gave a usable answer. Only these get filtered.
+  validatedPubkeys: Set<string>;
+  // Valid orders, keyed `${pubkey}:${dTag}` so each instance's d-tags are only
+  // considered valid for that instance, not shared across all instances.
+  dTags: Set<string>;
+}
+
+export const fetchValidMostroDTags = (): Promise<MostroValidation> => {
+  const dTags = new Set<string>();
+  const validatedPubkeys = new Set<string>();
   const pool = new SimplePool();
 
   const subscriptions = Object.entries(mostroAuthRelays).map(([pubkey, relays]) => {
     return new Promise<void>(resolve => {
-      pool.subscribe(
-        relays,
-        {
-          kinds: [38383],
-          '#s': ['pending'],
-          authors: [pubkey],
-        },
-        {
-          id: `p2pMostroValid-${pubkey.slice(0, 8)}`,
-          onevent(event: Event) {
-            const dTag = event.tags.find(t => t[0] === 'd')?.[1] ?? '';
-            // Key by pubkey+dTag so each Mostro instance's d-tags are
-            // only considered valid for that instance, not shared across
-            // all instances.
-            if (dTag) validDTags.add(`${event.pubkey}:${dTag}`);
-          },
-          oneose() {
-            resolve();
-          },
+      const found = new Set<string>();
+      let settled = false;
+
+      // Fail open: an unreachable relay, a timeout or an empty answer must never
+      // be read as "this instance has no valid orders" — that would wipe the whole
+      // instance off the book. Only an EOSE carrying at least one order counts.
+      const finish = (reachedEose: boolean) => {
+        if (settled) return;
+        settled = true;
+        if (reachedEose && found.size > 0) {
+          validatedPubkeys.add(pubkey);
+          found.forEach(dTag => dTags.add(`${pubkey}:${dTag}`));
         }
-      );
-      setTimeout(resolve, 15000);
+        resolve();
+      };
+
+      try {
+        pool.subscribe(
+          relays,
+          {
+            kinds: [38383],
+            '#s': ['pending'],
+            authors: [pubkey],
+          },
+          {
+            id: `p2pMostroValid-${pubkey.slice(0, 8)}`,
+            onevent(event: Event) {
+              const dTag = event.tags.find(t => t[0] === 'd')?.[1] ?? '';
+              if (dTag) found.add(dTag);
+            },
+            oneose() {
+              finish(true);
+            },
+            onclose() {
+              finish(false);
+            },
+          }
+        );
+      } catch (error) {
+        console.error(`Error validating Mostro orders for ${pubkey.slice(0, 8)}:`, error);
+        finish(false);
+      }
+
+      setTimeout(() => finish(false), 15000);
     });
   });
 
-  return Promise.all(subscriptions).then(() => validDTags);
+  return Promise.all(subscriptions).then(() => ({ validatedPubkeys, dTags }));
+};
+
+export const MOSTRO_SOURCES = [
+  'mostro',
+  'NostroMostro',
+  'Kmbalache',
+  'MostroColombia',
+  'MostroBolivia',
+  'MostroVenezuela',
+];
+
+// Orphaned orders are pending events still floating on aggregator relays that the
+// issuing instance's own relay no longer lists.
+export const isMostroOrderValid = (
+  event: Pick<EventTableData, 'source' | 'pubkey' | 'dTag'>,
+  validation: MostroValidation | null
+): boolean => {
+  if (!validation) return true;
+  if (!MOSTRO_SOURCES.includes(event.source)) return true;
+  if (!event.dTag) return true;
+  if (!validation.validatedPubkeys.has(event.pubkey)) return true;
+  return validation.dTags.has(`${event.pubkey}:${event.dTag}`);
 };
 
 export const updateExchangeRates: () => Promise<[Record<string, number>, string[]]> = async () => {
