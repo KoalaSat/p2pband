@@ -59,5 +59,16 @@
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-react": "^7.32.2",
     "prettier": "^2.8.4"
+  },
+  "jest": {
+    "transformIgnorePatterns": [
+      "[/\\\\]node_modules[/\\\\](?!(d3|d3-[^/\\\\]+|internmap|delaunator|robust-predicates)[/\\\\]).+\\.(js|mjs|jsx|ts|tsx)$",
+      "^.+\\.module\\.(css|sass|scss)$"
+    ],
+    "moduleNameMapper": {
+      "^antd/es/(.*)$": "antd/lib/$1",
+      "^react-native$": "react-native-web",
+      "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy"
+    }
   }
 }
