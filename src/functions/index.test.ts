@@ -1,5 +1,13 @@
 import { Event } from 'nostr-tools/lib/types/core';
-import { isMostroOrderValid, MostroValidation } from 'functions';
+import {
+  DEFAULT_FILTERS,
+  FILTER_STORAGE_KEY,
+  isMostroOrderValid,
+  loadFilters,
+  matchesSourceFilter,
+  MostroValidation,
+  saveFilters,
+} from 'functions';
 import { isEventExpired, mergeEvent, MOSTRO_PENDING_MAX_AGE_S } from 'context/NostrEventsContext';
 
 const MOSTRO_MAIN = '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390';
@@ -212,5 +220,98 @@ describe('mergeEvent', () => {
     mergeEvent(events, noDTag, NOW, tombstones);
 
     expect(events.size).toBe(0);
+  });
+});
+
+describe('matchesSourceFilter', () => {
+  const row = (source: string) => ({ source });
+
+  it('is a no-op when nothing is selected', () => {
+    expect(matchesSourceFilter(row('mostro'), [], 'only')).toBe(true);
+    expect(matchesSourceFilter(row('mostro'), [], 'except')).toBe(true);
+  });
+
+  it('keeps only the selected sources in only mode', () => {
+    expect(matchesSourceFilter(row('mostro'), ['mostro', 'peach'], 'only')).toBe(true);
+    expect(matchesSourceFilter(row('robosats'), ['mostro', 'peach'], 'only')).toBe(false);
+  });
+
+  it('drops the selected sources in except mode', () => {
+    expect(matchesSourceFilter(row('mostro'), ['mostro', 'peach'], 'except')).toBe(false);
+    expect(matchesSourceFilter(row('robosats'), ['mostro', 'peach'], 'except')).toBe(true);
+  });
+
+  it('treats each Mostro instance as its own source', () => {
+    // processEvent renames `mostro` per instance, so excluding one instance must
+    // not take the others with it.
+    expect(matchesSourceFilter(row('MostroColombia'), ['mostro'], 'except')).toBe(true);
+    expect(matchesSourceFilter(row('mostro'), ['mostro'], 'except')).toBe(false);
+  });
+});
+
+describe('filter persistence', () => {
+  const stored = {
+    sourceMode: 'except' as const,
+    sources: ['mostro', 'peach'],
+    type: 'BUY',
+    currency: 'EUR',
+    paymentMethod: 'SEPA',
+  };
+
+  beforeEach(() => window.localStorage.clear());
+
+  it('defaults when nothing is stored', () => {
+    expect(loadFilters()).toEqual(DEFAULT_FILTERS);
+  });
+
+  it('round-trips every filter', () => {
+    saveFilters(stored);
+
+    expect(loadFilters()).toEqual(stored);
+  });
+
+  it('falls back to the defaults on unusable stored data', () => {
+    window.localStorage.setItem(FILTER_STORAGE_KEY, 'not json');
+    expect(loadFilters()).toEqual(DEFAULT_FILTERS);
+
+    window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify('a string'));
+    expect(loadFilters()).toEqual(DEFAULT_FILTERS);
+  });
+
+  // A corrupt field must not take the rest of the user's filters with it.
+  it('sanitises each field independently', () => {
+    window.localStorage.setItem(
+      FILTER_STORAGE_KEY,
+      JSON.stringify({
+        sourceMode: 'nope',
+        sources: [1, 'peach'],
+        type: 'MAYBE',
+        currency: 'EUR',
+        paymentMethod: 42,
+      })
+    );
+
+    expect(loadFilters()).toEqual({
+      sourceMode: 'only',
+      sources: [],
+      type: null,
+      currency: 'EUR',
+      paymentMethod: '',
+    });
+  });
+
+  it('survives localStorage being unavailable', () => {
+    const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceeded');
+    });
+    const getItem = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError');
+    });
+
+    expect(() => saveFilters(stored)).not.toThrow();
+    expect(loadFilters()).toEqual(DEFAULT_FILTERS);
+
+    setItem.mockRestore();
+    getItem.mockRestore();
   });
 });

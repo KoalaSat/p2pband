@@ -447,3 +447,78 @@ export const updateExchangeRates: () => Promise<[Record<string, number>, string[
 
   return [calculateAverageRates(newRateSources), Object.keys(newRateSources)];
 };
+
+export type SourceFilterMode = 'only' | 'except';
+
+// Platform filter predicate. An empty selection filters nothing in either mode.
+// Sources are the per-instance names processEvent assigns, so excluding `mostro`
+// leaves MostroColombia and the other instances on the book.
+export const matchesSourceFilter = (
+  event: Pick<EventTableData, 'source'>,
+  sources: string[],
+  mode: SourceFilterMode
+): boolean => {
+  if (sources.length === 0) return true;
+  return mode === 'except' ? !sources.includes(event.source) : sources.includes(event.source);
+};
+
+export interface FilterPreferences {
+  sourceMode: SourceFilterMode;
+  sources: string[];
+  type: string | null;
+  currency: string | null;
+  paymentMethod: string;
+}
+
+export const FILTER_STORAGE_KEY = 'p2pband.filters';
+
+export const DEFAULT_FILTERS: FilterPreferences = {
+  sourceMode: 'only',
+  sources: [],
+  type: null,
+  currency: null,
+  paymentMethod: '',
+};
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(item => typeof item === 'string');
+
+// Stored preferences are user-editable and outlive any given release, so every
+// field is validated on its own — a corrupt one falls back to its default
+// instead of discarding the rest.
+const sanitiseFilters = (raw: unknown): FilterPreferences => {
+  if (typeof raw !== 'object' || raw === null) return DEFAULT_FILTERS;
+  const candidate = raw as Record<string, unknown>;
+
+  return {
+    sourceMode: candidate.sourceMode === 'except' ? 'except' : DEFAULT_FILTERS.sourceMode,
+    sources: isStringArray(candidate.sources) ? candidate.sources : DEFAULT_FILTERS.sources,
+    type:
+      candidate.type === 'BUY' || candidate.type === 'SELL' ? candidate.type : DEFAULT_FILTERS.type,
+    currency:
+      typeof candidate.currency === 'string' ? candidate.currency : DEFAULT_FILTERS.currency,
+    paymentMethod:
+      typeof candidate.paymentMethod === 'string'
+        ? candidate.paymentMethod
+        : DEFAULT_FILTERS.paymentMethod,
+  };
+};
+
+export const loadFilters = (): FilterPreferences => {
+  try {
+    const raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
+    if (!raw) return DEFAULT_FILTERS;
+    return sanitiseFilters(JSON.parse(raw));
+  } catch (error) {
+    // Disabled storage, private mode or corrupt JSON: fall back to the defaults.
+    return DEFAULT_FILTERS;
+  }
+};
+
+export const saveFilters = (filters: FilterPreferences): void => {
+  try {
+    window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
+  } catch (error) {
+    // Storage may be unavailable or full; losing the preference is acceptable.
+  }
+};

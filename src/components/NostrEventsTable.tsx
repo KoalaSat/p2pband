@@ -13,6 +13,7 @@ import {
   Col,
   Tooltip,
   TablePaginationConfig,
+  Segmented,
 } from 'antd';
 import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
@@ -25,6 +26,10 @@ import {
   fetchValidMostroDTags,
   isMostroOrderValid,
   MostroValidation,
+  matchesSourceFilter,
+  SourceFilterMode,
+  loadFilters,
+  saveFilters,
 } from 'functions';
 import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
@@ -135,11 +140,17 @@ const NostrEventsTable: React.FC = () => {
   const [hodlHodlValidIds, setHodlHodlValidIds] = useState<Set<string> | null>(null);
   const [mostroValidation, setMostroValidation] = useState<MostroValidation | null>(null);
 
-  // Filter states
-  const [sourceFilter, setSourceFilter] = useState<string | null>(null);
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('');
+  // Filter states, restored from the previous visit.
+  const storedFilters = loadFilters();
+  const [sourceFilter, setSourceFilter] = useState<string[]>(storedFilters.sources);
+  const [sourceFilterMode, setSourceFilterMode] = useState<SourceFilterMode>(
+    storedFilters.sourceMode
+  );
+  const [typeFilter, setTypeFilter] = useState<string | null>(storedFilters.type);
+  const [currencyFilter, setCurrencyFilter] = useState<string | null>(storedFilters.currency);
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>(
+    storedFilters.paymentMethod
+  );
   const pageSize = 20;
 
   // Function to fetch exchange rates from multiple sources
@@ -248,7 +259,7 @@ const NostrEventsTable: React.FC = () => {
   };
 
   // Handle filter changes
-  const handleSourceFilterChange = (value: string | null) => {
+  const handleSourceFilterChange = (value: string[]) => {
     setSourceFilter(value);
   };
 
@@ -265,7 +276,8 @@ const NostrEventsTable: React.FC = () => {
   };
 
   const clearFilters = () => {
-    setSourceFilter(null);
+    setSourceFilter([]);
+    setSourceFilterMode('only');
     setTypeFilter(null);
     setCurrencyFilter(null);
     setPaymentMethodFilter('');
@@ -345,9 +357,7 @@ const NostrEventsTable: React.FC = () => {
     }
 
     // Apply source filter
-    if (sourceFilter) {
-      result = result.filter(event => event.source === sourceFilter);
-    }
+    result = result.filter(event => matchesSourceFilter(event, sourceFilter, sourceFilterMode));
 
     // Apply type filter
     if (typeFilter) {
@@ -438,6 +448,7 @@ const NostrEventsTable: React.FC = () => {
   }, [
     tableEvents,
     sourceFilter,
+    sourceFilterMode,
     typeFilter,
     currencyFilter,
     paymentMethodFilter,
@@ -445,6 +456,17 @@ const NostrEventsTable: React.FC = () => {
     hodlHodlValidIds,
     mostroValidation,
   ]);
+
+  // Persist the filter selection so it survives a reload.
+  useEffect(() => {
+    saveFilters({
+      sourceMode: sourceFilterMode,
+      sources: sourceFilter,
+      type: typeFilter,
+      currency: currencyFilter,
+      paymentMethod: paymentMethodFilter,
+    });
+  }, [sourceFilter, sourceFilterMode, typeFilter, currencyFilter, paymentMethodFilter]);
 
   // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;
@@ -685,9 +707,22 @@ const NostrEventsTable: React.FC = () => {
                   <Col span={24}>
                     <Row justify="space-between" gutter={[0, 10]}>
                       <Col md={7} xs={24}>
+                        <Segmented
+                          block
+                          size="small"
+                          style={{ marginBottom: '6px' }}
+                          value={sourceFilterMode}
+                          onChange={value => setSourceFilterMode(value as SourceFilterMode)}
+                          options={[
+                            { value: 'only', label: 'Only' },
+                            { value: 'except', label: 'Except' },
+                          ]}
+                        />
                         <Select
                           style={{ width: '100%' }}
-                          placeholder="Source"
+                          mode="multiple"
+                          maxTagCount="responsive"
+                          placeholder={sourceFilterMode === 'except' ? 'Exclude sources' : 'Source'}
                           allowClear
                           onChange={handleSourceFilterChange}
                           value={sourceFilter}
@@ -887,7 +922,10 @@ const NostrEventsTable: React.FC = () => {
                         cursor: 'pointer',
                       }}
                       disabled={
-                        !sourceFilter && !typeFilter && !currencyFilter && !paymentMethodFilter
+                        sourceFilter.length === 0 &&
+                        !typeFilter &&
+                        !currencyFilter &&
+                        !paymentMethodFilter
                       }
                     >
                       Clear All Filters
