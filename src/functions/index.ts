@@ -1,7 +1,7 @@
 import { EventTableData } from 'components/NostrEventsTable';
 import { Event } from 'nostr-tools/lib/types/core';
 import { SimplePool } from 'nostr-tools';
-import { mostroPubkeys } from 'context/NostrEventsContext';
+import { isEventExpired } from 'context/NostrEventsContext';
 
 // Function to format amount values
 export const formatAmount = (value: string): string => {
@@ -74,17 +74,11 @@ export const processEvent = (
     const premiumTag = event.tags.find(tag => tag[0] === 'premium');
     const bondTag = event.tags.find(tag => tag[0] === 'bond');
     const paymentMethodsTag = event.tags.find(tag => tag[0] === 'pm');
-    const expirationTag = event.tags.find(tag => tag[0] === 'expiration');
 
-    // Check if the event has expired by comparing expiration timestamp with current time
-    if (expirationTag && expirationTag[1]) {
-      const expirationTimestamp = parseInt(expirationTag[1], 10);
-      const currentTimestamp = Math.floor(Date.now() / 1000); // Current time in seconds
-
-      // Skip expired events
-      if (!isNaN(expirationTimestamp) && expirationTimestamp < currentTimestamp) {
-        return null;
-      }
+    // Skip expired events. For Mostro the NIP-40 expiration is capped at
+    // created_at + MOSTRO_PENDING_MAX_AGE_S, see isEventExpired.
+    if (isEventExpired(event)) {
+      return null;
     }
 
     // Distinguish between decentralized Mostro instances by pubkey
