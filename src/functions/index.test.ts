@@ -6,13 +6,22 @@ import {
   loadFilters,
   matchesSourceFilter,
   MostroValidation,
+  processEvent,
   saveFilters,
 } from 'functions';
+import {
+  MOSTRO_INSTANCES,
+  MOSTRO_SOURCES,
+  mostroAuthRelays,
+  mostroPubkeys,
+} from 'functions/mostroInstances';
 import { isEventExpired, mergeEvent, MOSTRO_PENDING_MAX_AGE_S } from 'context/NostrEventsContext';
 
 const MOSTRO_MAIN = '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390';
 const NOSTRO_MOSTRO = '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40';
 const ROBOSATS = '40d33962fdf26e0910805f36a3a96b239cf93b95d4a3e6dd779f1ea3ff9b0866';
+const MOSTRO_BRASIL = '00037abd44e7a846689e230d5446abcd0d56a344fa81fff85c09d1929feda486';
+const MOSTRO_AR = 'b3626fe91b602bdbca3673bec0855221f41dc8f6d0e4027e51eaa525d68d87f2';
 
 const validation = (validatedPubkeys: string[], dTags: string[]): MostroValidation => ({
   validatedPubkeys: new Set(validatedPubkeys),
@@ -313,5 +322,68 @@ describe('filter persistence', () => {
 
     setItem.mockRestore();
     getItem.mockRestore();
+  });
+});
+
+describe('Mostro instance registry', () => {
+  it('has no duplicate pubkeys', () => {
+    const pubkeys = MOSTRO_INSTANCES.map(instance => instance.pubkey);
+
+    expect(new Set(pubkeys).size).toBe(pubkeys.length);
+  });
+
+  it('has no duplicate names', () => {
+    const names = MOSTRO_INSTANCES.map(instance => instance.name);
+
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('derives every lookup from the same instance list', () => {
+    expect(mostroPubkeys).toHaveLength(MOSTRO_INSTANCES.length);
+    expect(MOSTRO_SOURCES).toHaveLength(MOSTRO_INSTANCES.length);
+    expect(Object.keys(mostroAuthRelays)).toHaveLength(MOSTRO_INSTANCES.length);
+  });
+
+  it('registers Mostro Brasil and MostrAR', () => {
+    expect(mostroPubkeys).toContain(MOSTRO_BRASIL);
+    expect(mostroPubkeys).toContain(MOSTRO_AR);
+    expect(MOSTRO_SOURCES).toEqual(expect.arrayContaining(['MostroBrasil', 'MostroAr']));
+  });
+});
+
+describe('processEvent instance naming', () => {
+  const rates = { USD: 100_000 };
+
+  const order = (pubkey: string): Event =>
+    ({
+      id: 'id',
+      pubkey,
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 38383,
+      sig: 'sig',
+      content: '',
+      tags: [
+        ['d', 'order-1'],
+        ['s', 'pending'],
+        ['k', 'sell'],
+        ['f', 'USD'],
+        ['fa', '100'],
+        ['premium', '0'],
+        ['y', 'mostro'],
+        ['expiration', String(Math.floor(Date.now() / 1000) + 60 * 60)],
+      ],
+    } as Event);
+
+  it('renames a Mostro Brasil order', () => {
+    expect(processEvent(order(MOSTRO_BRASIL), rates)?.source).toBe('MostroBrasil');
+  });
+
+  it('renames a MostrAR order', () => {
+    expect(processEvent(order(MOSTRO_AR), rates)?.source).toBe('MostroAr');
+  });
+
+  // The flagship instance is the one that keeps the bare `mostro` source tag.
+  it('leaves the flagship instance untouched', () => {
+    expect(processEvent(order(MOSTRO_MAIN), rates)?.source).toBe('mostro');
   });
 });
