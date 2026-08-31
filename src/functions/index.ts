@@ -2,6 +2,7 @@ import { EventTableData } from 'components/NostrEventsTable';
 import { Event } from 'nostr-tools/lib/types/core';
 import { SimplePool } from 'nostr-tools';
 import { isEventExpired } from 'context/NostrEventsContext';
+import { MOSTRO_SOURCES, mostroAuthRelays, mostroInstanceNames } from 'functions/mostroInstances';
 
 // Function to format amount values
 export const formatAmount = (value: string): string => {
@@ -82,15 +83,8 @@ export const processEvent = (
     }
 
     // Distinguish between decentralized Mostro instances by pubkey
-    const mostroInstances: Record<string, string> = {
-      '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': 'NostroMostro',
-      '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a': 'Kmbalache',
-      '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b': 'MostroColombia',
-      '00007cb3305fb972f5cc83f83a8fbca1e64e93c9d1369880a9fd62ef95d23f91': 'MostroBolivia',
-      '000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb': 'MostroVenezuela',
-    };
-    if (sourceTag?.[1] === 'mostro' && mostroInstances[event.pubkey]) {
-      sourceTag[1] = mostroInstances[event.pubkey];
+    if (sourceTag?.[1] === 'mostro' && mostroInstanceNames[event.pubkey]) {
+      sourceTag[1] = mostroInstanceNames[event.pubkey];
     }
 
     if (sourceTag?.[1] === 'robosats' && linkTag?.[1]) {
@@ -266,26 +260,6 @@ export const fetchValidHodlHodlOfferIds = async (): Promise<Set<string> | null> 
   return validIds.size > 0 ? validIds : null;
 };
 
-// Each Mostro instance's authoritative relay is the source of truth for its pending orders.
-const mostroAuthRelays: Record<string, string[]> = {
-  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390': [
-    'wss://relay.mostro.network',
-  ],
-  '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': ['wss://relay.kilombino.com'],
-  '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a': [
-    'wss://relay.mostro.network',
-  ],
-  '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b': [
-    'wss://relay.mostro.network',
-  ],
-  '00007cb3305fb972f5cc83f83a8fbca1e64e93c9d1369880a9fd62ef95d23f91': [
-    'wss://relay.mostro.network',
-  ],
-  '000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb': [
-    'wss://relay.mostro.network',
-  ],
-};
-
 export interface MostroValidation {
   // Instances whose authoritative relay gave a usable answer. Only these get filtered.
   validatedPubkeys: Set<string>;
@@ -351,14 +325,7 @@ export const fetchValidMostroDTags = (): Promise<MostroValidation> => {
   return Promise.all(subscriptions).then(() => ({ validatedPubkeys, dTags }));
 };
 
-export const MOSTRO_SOURCES = [
-  'mostro',
-  'NostroMostro',
-  'Kmbalache',
-  'MostroColombia',
-  'MostroBolivia',
-  'MostroVenezuela',
-];
+export { MOSTRO_SOURCES } from 'functions/mostroInstances';
 
 // Orphaned orders are pending events still floating on aggregator relays that the
 // issuing instance's own relay no longer lists.
