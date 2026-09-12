@@ -177,9 +177,17 @@ export const processEvent = (
 
       if (rawAmount && currencyCode && fixedSats > 0) {
         const fixedRate = (rawAmount * SATS_PER_BTC) / fixedSats;
+        const derived = impliedPremium(fixedRate, currencyCode, exchangeRates);
+
         eventData.price = formatRate(fixedRate, currencyCode);
-        eventData.fixedPrice = true;
-        eventData.premium = impliedPremium(fixedRate, currencyCode, exchangeRates);
+        eventData.premium = derived;
+        // Only flag the premium as measured when it contradicts what the maker
+        // declared. HodlHodl pins the sats too but publishes a premium that
+        // matches within a rounding error, so marking those would be noise.
+        eventData.fixedPrice =
+          derived !== null &&
+          (!premiumTag?.[1] ||
+            Math.abs(parseFloat(derived) - parseFloat(premiumTag[1])) > PREMIUM_DRIFT_TOLERANCE);
       } else if (rawAmount !== null && currencyCode) {
         eventData.price = calculateBtcPrice(
           rawAmount,
@@ -201,6 +209,10 @@ export const processEvent = (
 };
 
 export const SATS_PER_BTC = 100_000_000;
+
+// Percentage points a fixed-price order may drift from its declared premium
+// before we stop trusting the declared one.
+export const PREMIUM_DRIFT_TOLERANCE = 0.5;
 
 // Render a rate the way the Price column expects it.
 export const formatRate = (rate: number, currencyCode: string): string =>

@@ -442,6 +442,22 @@ describe('processEvent fixed-price orders', () => {
     expect(data?.fixedPrice).toBe(true);
   });
 
+  // HodlHodl pins the sats but declares a premium that matches, so flagging it
+  // as measured would mark most of the book for nothing.
+  it('leaves the premium unflagged when it matches the declared one', () => {
+    const data = processEvent(
+      order([
+        ['f', 'USD'],
+        ['fa', '100'],
+        ['amt', '99900'],
+        ['premium', '0'],
+      ]),
+      rates
+    );
+    expect(parseFloat(data?.premium ?? '')).toBeCloseTo(0.1);
+    expect(data?.fixedPrice).toBe(false);
+  });
+
   // `amt` pairs with the top of the range, not the bottom.
   it('uses the top of a range to derive the rate', () => {
     const data = processEvent(
@@ -467,6 +483,7 @@ describe('processEvent fixed-price orders', () => {
       rates
     );
     expect(data?.premium).toBeNull();
+    expect(data?.fixedPrice).toBe(false);
     expect(data?.price).toBe(rate(125000, 'VES'));
   });
 
