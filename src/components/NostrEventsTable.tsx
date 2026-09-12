@@ -51,6 +51,8 @@ export interface EventTableData {
   premium: string | null;
   bond: string | null;
   price: string | null;
+  /** The maker pinned the sats amount, so `premium` is derived from `price`. */
+  fixedPrice?: boolean;
   rawAmount: number | null;
   paymentMethods: string | null;
   pubkey: string;
@@ -549,10 +551,11 @@ const NostrEventsTable: React.FC = () => {
       title: 'Premium',
       dataIndex: 'premium',
       key: 'premium',
-      render: (value: string | null) => {
+      render: (value: string | null, record: EventTableData) => {
         if (!value) return <Tag color="default">-</Tag>;
 
         const premiumValue = parseFloat(value);
+        if (isNaN(premiumValue)) return <Tag color="default">-</Tag>;
         let tagColor = 'default'; // grey for 0
 
         if (premiumValue > 0) {
@@ -561,7 +564,18 @@ const NostrEventsTable: React.FC = () => {
           tagColor = 'error'; // red for negative
         }
 
-        return <Tag color={tagColor}>{premiumValue.toFixed(2)} %</Tag>;
+        // Fixed-price orders don't declare a premium: this one is measured
+        // against the current market rate, so flag it as an approximation.
+        return (
+          <Tag
+            color={tagColor}
+            style={record.fixedPrice ? { borderStyle: 'dashed' } : undefined}
+            title={record.fixedPrice ? `Fixed price: ${record.price}` : undefined}
+          >
+            {record.fixedPrice ? '≈ ' : ''}
+            {premiumValue.toFixed(2)} %
+          </Tag>
+        );
       },
       sorter: true,
       sortOrder: sortedInfo.columnKey === 'premium' ? sortedInfo.order : null,

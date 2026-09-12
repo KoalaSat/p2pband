@@ -73,6 +73,7 @@ export const processEvent = (
     const currencyTag = event.tags.find(tag => tag[0] === 'f');
     const linkTag = event.tags.find(tag => tag[0] === 'source');
     const premiumTag = event.tags.find(tag => tag[0] === 'premium');
+    const satsTag = event.tags.find(tag => tag[0] === 'amt');
     const bondTag = event.tags.find(tag => tag[0] === 'bond');
     const paymentMethodsTag = event.tags.find(tag => tag[0] === 'pm');
 
@@ -168,8 +169,18 @@ export const processEvent = (
     };
 
     try {
-      // Calculate BTC price if we have both a currency code and an amount
-      if (rawAmount !== null && currencyCode) {
+      // A non-zero 'amt' means the maker pinned the sats amount, so the order
+      // carries its own price and the 'premium' tag is meaningless (Mostro
+      // publishes 0 for every fixed-price order). Derive both columns from it.
+      // 'amt' pairs with the top of the 'fa' range, which is what rawAmount holds.
+      const fixedSats = satsTag && satsTag.length > 1 ? parseFloat(satsTag[1]) : NaN;
+
+      if (rawAmount && currencyCode && fixedSats > 0) {
+        const fixedRate = (rawAmount * SATS_PER_BTC) / fixedSats;
+        eventData.price = formatRate(fixedRate, currencyCode);
+        eventData.fixedPrice = true;
+        eventData.premium = impliedPremium(fixedRate, currencyCode, exchangeRates);
+      } else if (rawAmount !== null && currencyCode) {
         eventData.price = calculateBtcPrice(
           rawAmount,
           currencyCode,
@@ -187,6 +198,27 @@ export const processEvent = (
     console.error('Error processing event:', error, event);
     return null;
   }
+};
+
+export const SATS_PER_BTC = 100_000_000;
+
+// Render a rate the way the Price column expects it.
+export const formatRate = (rate: number, currencyCode: string): string =>
+  `${rate.toLocaleString(undefined, {
+    maximumFractionDigits: 0,
+  })} ${currencyCode.toUpperCase()}/BTC`;
+
+// Premium a fixed-price order actually carries against the current market rate.
+// Null when we have no rate for that currency: showing the tag's literal 0 there
+// would claim the order is at market when nothing backs that.
+export const impliedPremium = (
+  rate: number,
+  currencyCode: string,
+  exchangeRates: Record<string, number>
+): string | null => {
+  const marketRate = exchangeRates[currencyCode];
+  if (!marketRate || marketRate <= 0) return null;
+  return String((rate / marketRate - 1) * 100);
 };
 
 // Function to calculate exchange rate pair for display in the Price column
@@ -220,10 +252,7 @@ export const calculateBtcPrice = (
       }
 
       // Return in format: {rate with premium} {currency code}/BTC
-      const result = `${finalRate.toLocaleString(undefined, {
-        maximumFractionDigits: 0,
-      })} ${currencyCode.toUpperCase()}/BTC`;
-      return result;
+      return formatRate(finalRate, currencyCode);
     }
 
     return null;

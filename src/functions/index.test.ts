@@ -397,3 +397,91 @@ describe('processEvent instance naming', () => {
     expect(processEvent(order(MOSTRO_MAIN), rates)?.source).toBe('mostro');
   });
 });
+
+describe('processEvent fixed-price orders', () => {
+  const rates = { USD: 100_000 };
+
+  // Locale-independent: the separator comes from the runtime's own formatting.
+  const rate = (value: number, currency: string) =>
+    `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${currency}/BTC`;
+
+  const order = (tags: string[][]): Event =>
+    ({
+      id: 'id',
+      pubkey: MOSTRO_MAIN,
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 38383,
+      sig: 'sig',
+      content: '',
+      tags: [
+        ['d', 'order-1'],
+        ['s', 'pending'],
+        ['k', 'sell'],
+        ['y', 'mostro'],
+        ['expiration', String(Math.floor(Date.now() / 1000) + 60 * 60)],
+        ...tags,
+      ],
+    } as Event);
+
+  // 100 USD for 0.0008 BTC is 125,000 USD/BTC, 25% over the 100,000 market rate,
+  // even though the maker published the usual `premium` of 0.
+  const fixed = order([
+    ['f', 'USD'],
+    ['fa', '100'],
+    ['amt', '80000'],
+    ['premium', '0'],
+  ]);
+
+  it('prices a fixed-price order from its sats amount, not from the market', () => {
+    expect(processEvent(fixed, rates)?.price).toBe(rate(125000, 'USD'));
+  });
+
+  it('replaces the declared premium with the one the order actually carries', () => {
+    const data = processEvent(fixed, rates);
+    expect(parseFloat(data?.premium ?? '')).toBeCloseTo(25);
+    expect(data?.fixedPrice).toBe(true);
+  });
+
+  // `amt` pairs with the top of the range, not the bottom.
+  it('uses the top of a range to derive the rate', () => {
+    const data = processEvent(
+      order([
+        ['f', 'USD'],
+        ['fa', '50', '100'],
+        ['amt', '80000'],
+        ['premium', '0'],
+      ]),
+      rates
+    );
+    expect(data?.price).toBe(rate(125000, 'USD'));
+  });
+
+  it('shows no premium when the currency has no market rate', () => {
+    const data = processEvent(
+      order([
+        ['f', 'VES'],
+        ['fa', '100'],
+        ['amt', '80000'],
+        ['premium', '0'],
+      ]),
+      rates
+    );
+    expect(data?.premium).toBeNull();
+    expect(data?.price).toBe(rate(125000, 'VES'));
+  });
+
+  it('leaves market-price orders on the declared premium', () => {
+    const data = processEvent(
+      order([
+        ['f', 'USD'],
+        ['fa', '100'],
+        ['amt', '0'],
+        ['premium', '5'],
+      ]),
+      rates
+    );
+    expect(data?.premium).toBe('5');
+    expect(data?.fixedPrice).toBeUndefined();
+    expect(data?.price).toBe(rate(105000, 'USD'));
+  });
+});
