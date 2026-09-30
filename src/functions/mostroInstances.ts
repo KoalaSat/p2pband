@@ -60,6 +60,12 @@ export const MOSTRO_INSTANCES: MostroInstance[] = [
     authRelays: ['wss://relay.mostro.network'],
   },
   {
+    pubkey: '00003f6be51b51a1a0cf9c94232ab1bba1f5c1bfd5a0e8687e9647558536b791',
+    name: 'MostroMexico',
+    region: 'México',
+    authRelays: ['wss://relay.mostro.network'],
+  },
+  {
     pubkey: 'b3626fe91b602bdbca3673bec0855221f41dc8f6d0e4027e51eaa525d68d87f2',
     name: 'MostroAr',
     region: 'Argentina',

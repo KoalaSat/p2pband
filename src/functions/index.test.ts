@@ -22,6 +22,7 @@ const NOSTRO_MOSTRO = '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0f
 const ROBOSATS = '40d33962fdf26e0910805f36a3a96b239cf93b95d4a3e6dd779f1ea3ff9b0866';
 const MOSTRO_BRASIL = '00037abd44e7a846689e230d5446abcd0d56a344fa81fff85c09d1929feda486';
 const MOSTRO_AR = 'b3626fe91b602bdbca3673bec0855221f41dc8f6d0e4027e51eaa525d68d87f2';
+const MOSTRO_MEXICO = '00003f6be51b51a1a0cf9c94232ab1bba1f5c1bfd5a0e8687e9647558536b791';
 
 const validation = (validatedPubkeys: string[], dTags: string[]): MostroValidation => ({
   validatedPubkeys: new Set(validatedPubkeys),
@@ -349,6 +350,11 @@ describe('Mostro instance registry', () => {
     expect(mostroPubkeys).toContain(MOSTRO_AR);
     expect(MOSTRO_SOURCES).toEqual(expect.arrayContaining(['MostroBrasil', 'MostroAr']));
   });
+
+  it('registers Mostro Mexico', () => {
+    expect(mostroPubkeys).toContain(MOSTRO_MEXICO);
+    expect(MOSTRO_SOURCES).toContain('MostroMexico');
+  });
 });
 
 describe('processEvent instance naming', () => {
@@ -380,6 +386,10 @@ describe('processEvent instance naming', () => {
 
   it('renames a MostrAR order', () => {
     expect(processEvent(order(MOSTRO_AR), rates)?.source).toBe('MostroAr');
+  });
+
+  it('renames a Mostro Mexico order', () => {
+    expect(processEvent(order(MOSTRO_MEXICO), rates)?.source).toBe('MostroMexico');
   });
 
   // The flagship instance is the one that keeps the bare `mostro` source tag.
