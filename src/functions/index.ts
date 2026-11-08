@@ -179,6 +179,9 @@ export const processEvent = (
         const fixedRate = (rawAmount * SATS_PER_BTC) / fixedSats;
         const derived = impliedPremium(fixedRate, currencyCode, exchangeRates);
 
+        // The ingest gate only sees the declared premium, which says nothing here.
+        if (derived !== null && Math.abs(parseFloat(derived)) > MAX_ABS_PREMIUM) return null;
+
         eventData.price = formatRate(fixedRate, currencyCode);
         // Without a market rate a non-zero declared premium is still information,
         // but a literal 0 would claim the order is at market.
@@ -216,6 +219,9 @@ export const SATS_PER_BTC = 100_000_000;
 // Percentage points a fixed-price order may drift from its declared premium
 // before we stop trusting the declared one.
 export const PREMIUM_DRIFT_TOLERANCE = 0.5;
+
+// Same bound the ingest gate applies to declared premiums, for measured ones.
+export const MAX_ABS_PREMIUM = 40;
 
 // Render a rate the way the Price column expects it.
 export const formatRate = (rate: number, currencyCode: string): string =>

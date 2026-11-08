@@ -487,6 +487,34 @@ describe('processEvent fixed-price orders', () => {
     expect(data?.price).toBe(rate(125000, 'VES'));
   });
 
+  it('keeps a non-zero declared premium when the currency has no market rate', () => {
+    const data = processEvent(
+      order([
+        ['f', 'VES'],
+        ['fa', '100'],
+        ['amt', '80000'],
+        ['premium', '3'],
+      ]),
+      rates
+    );
+    expect(data?.premium).toBe('3');
+    expect(data?.fixedPrice).toBe(false);
+  });
+
+  // 100 USD for 1,000 sats implies +9,900%; for 1,000,000 sats it implies -90%.
+  it.each(['1000', '1000000'])('drops an order whose amt %s implies an absurd premium', amt => {
+    const data = processEvent(
+      order([
+        ['f', 'USD'],
+        ['fa', '100'],
+        ['amt', amt],
+        ['premium', '0'],
+      ]),
+      rates
+    );
+    expect(data).toBeNull();
+  });
+
   it('leaves market-price orders on the declared premium', () => {
     const data = processEvent(
       order([
