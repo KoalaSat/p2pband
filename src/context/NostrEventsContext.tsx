@@ -29,6 +29,15 @@ interface NostrEventsProviderProps {
   children: ReactNode;
 }
 
+export const mostroPubkeys = [
+  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390', // Mostro
+  '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40', // Mostro: NostroMostro (España)
+  '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a', // Mostro: Kmbalache (Cuba)
+  '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b', // Mostro: MostroColombia (Colombia)
+  '00007cb3305fb972f5cc83f83a8fbca1e64e93c9d1369880a9fd62ef95d23f91', // Mostro: MostroBolivia (Bolivia)
+  '000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb', // Mostro: MostroVenezuela (Venezuela)
+];
+
 export const allowedPubkeys = [
   '40d33962fdf26e0910805f36a3a96b239cf93b95d4a3e6dd779f1ea3ff9b0866', // Robosats: Alice
   'ded3dc02a1a9b61ce59d11f496539cb3fd15f00326a16f47e5f8d76baba24bdb', // Robosats: FreedomSats
@@ -38,7 +47,7 @@ export const allowedPubkeys = [
   '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191', // Robosats: Temple of Sats
   'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e', // LNP2PBot
   'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2', // Peach
-  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390', // Mostro
+  ...mostroPubkeys,
   '273e7880d38d39a7fb238efcf8957a1b5b27e819127a8483e975416a0a90f8d2', // HodlHodl
 ];
 
@@ -55,6 +64,7 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     'wss://relay.damus.io': ['lnp2pbot', 'peach', 'nostr'],
     'wss://relay.snort.social': ['hodlhodl', 'lnp2pbot', 'nostr'],
     'wss://relay.mostro.network': ['mostro', 'nostr'],
+    'wss://relay.kilombino.com': ['mostro', 'nostr'],
     'wss://relay.primal.net': ['peach', 'hodlhodl', 'nostr'],
     'wss://nos.lol': ['lnp2pbot', 'mostro', 'nostr'],
   });
@@ -63,6 +73,32 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   const [eventsCount, setEventsCount] = useState<number>(0);
   const [outboxRelays, setOutboxRelays] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const mostroRelays = Object.keys(relayPlatforms).filter(r =>
+    relayPlatforms[r].includes('mostro')
+  );
+
+  const isExpired = (event: Event): boolean => {
+    const exp = event.tags.find(tag => tag[0] === 'expiration')?.[1];
+    if (!exp) return false;
+    const ts = parseInt(exp, 10);
+    return !isNaN(ts) && ts < Math.floor(Date.now() / 1000);
+  };
+
+  const handleMostroEvent = (event: Event) => {
+    const statusTag = event.tags.find(tag => tag[0] === 's') ?? [];
+    const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] ?? '';
+    if (!dTag) return;
+    setEvents(events => {
+      if (statusTag[1] !== 'pending' || isExpired(event)) {
+        events.delete(dTag);
+      } else {
+        events.set(dTag, event);
+      }
+      setEventsCount(events.size);
+      return events;
+    });
+  };
 
   // Function to load events from Nostr relays
   const loadEvents = () => {
@@ -95,8 +131,8 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
             setEvents(events => {
               const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] ?? '';
-              if (statusTag[1] !== 'pending') {
-                removeEvent(dTag);
+              if (statusTag[1] !== 'pending' || isExpired(event)) {
+                events.delete(dTag);
               } else {
                 events.set(dTag, event);
               }
@@ -114,11 +150,28 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
         setEventsLoading(false);
       }
     });
+
+    // Secondary subscription for Mostro pubkeys without #s filter so we receive
+    // cancellations and status updates that replace pending events on the relay.
+    try {
+      const pool = new SimplePool();
+      pool.subscribe(
+        mostroRelays,
+        { kinds: [38383], authors: mostroPubkeys },
+        {
+          id: 'p2pMostroUpdates',
+          onevent: handleMostroEvent,
+        }
+      );
+    } catch (error) {
+      console.error('Error subscribing to Mostro updates:', error);
+    }
   };
 
   const removeEvent = (dTag: string) => {
     setEvents(m => {
-      m.set(dTag, null);
+      m.delete(dTag);
+      setEventsCount(m.size);
       return m;
     });
   };
@@ -171,8 +224,33 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
 
   // Initial load of events
   useEffect(() => {
-    const cleanup = loadEvents();
-    return cleanup;
+    loadEvents();
+  }, []);
+
+  // Periodic sweep: drop events whose NIP-40 expiration has passed so they
+  // disappear from the UI even if the source relay never sends a replacement.
+  useEffect(() => {
+    const sweep = () => {
+      setEvents(prev => {
+        const now = Math.floor(Date.now() / 1000);
+        let changed = false;
+        const next = new Map(prev);
+        next.forEach((ev, dTag) => {
+          const exp = ev?.tags.find(t => t[0] === 'expiration')?.[1];
+          const ts = exp ? parseInt(exp, 10) : NaN;
+          if (!isNaN(ts) && ts < now) {
+            next.delete(dTag);
+            changed = true;
+          }
+        });
+        if (!changed) return prev;
+        setEventsCount(next.size);
+        return next;
+      });
+    };
+    sweep();
+    const id = setInterval(sweep, 30 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {

@@ -1,5 +1,7 @@
 import { EventTableData } from 'components/NostrEventsTable';
 import { Event } from 'nostr-tools/lib/types/core';
+import { SimplePool } from 'nostr-tools';
+import { mostroPubkeys } from 'context/NostrEventsContext';
 
 // Function to format amount values
 export const formatAmount = (value: string): string => {
@@ -83,6 +85,30 @@ export const processEvent = (
       if (!isNaN(expirationTimestamp) && expirationTimestamp < currentTimestamp) {
         return null;
       }
+    }
+
+    // Mostro instances publish orders with a long NIP-40 expiration (~30 days)
+    // and republish the event whenever the maker is active. If created_at is
+    // older than the freshness window, the maker is effectively offline and
+    // the order is unreachable in practice — drop it.
+    const MOSTRO_FRESHNESS_S = 48 * 60 * 60;
+    if (sourceTag?.[1] === 'mostro') {
+      const ageS = Math.floor(Date.now() / 1000) - (event.created_at || 0);
+      if (ageS > MOSTRO_FRESHNESS_S) {
+        return null;
+      }
+    }
+
+    // Distinguish between decentralized Mostro instances by pubkey
+    const mostroInstances: Record<string, string> = {
+      '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': 'NostroMostro',
+      '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a': 'Kmbalache',
+      '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b': 'MostroColombia',
+      '00007cb3305fb972f5cc83f83a8fbca1e64e93c9d1369880a9fd62ef95d23f91': 'MostroBolivia',
+      '000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb': 'MostroVenezuela',
+    };
+    if (sourceTag?.[1] === 'mostro' && mostroInstances[event.pubkey]) {
+      sourceTag[1] = mostroInstances[event.pubkey];
     }
 
     if (sourceTag?.[1] === 'robosats' && linkTag?.[1]) {
@@ -228,6 +254,87 @@ export const calculateBtcPrice = (
     console.error('Error in calculateBtcPrice:', error);
     return null;
   }
+};
+
+export const fetchValidHodlHodlOfferIds = async (): Promise<Set<string> | null> => {
+  const validIds = new Set<string>();
+  const limit = 100;
+  let offset = 0;
+
+  try {
+    while (true) {
+      const apiUrl = `https://hodlhodl.com/api/v1/offers?filters%5Basset_code%5D=BTC&pagination%5Blimit%5D=${limit}&pagination%5Boffset%5D=${offset}`;
+      const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      if (!data.offers || data.offers.length === 0) break;
+
+      data.offers.forEach((offer: { id: string }) => validIds.add(offer.id));
+
+      if (data.offers.length < limit) break;
+      offset += limit;
+    }
+  } catch (error) {
+    console.error('Error fetching HodlHodl active offers:', error);
+    return null;
+  }
+
+  return validIds.size > 0 ? validIds : null;
+};
+
+// Each Mostro instance's authoritative relay is the source of truth for its pending orders.
+const mostroAuthRelays: Record<string, string[]> = {
+  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390': [
+    'wss://relay.mostro.network',
+  ],
+  '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': ['wss://relay.kilombino.com'],
+  '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a': [
+    'wss://relay.mostro.network',
+  ],
+  '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b': [
+    'wss://relay.mostro.network',
+  ],
+  '00007cb3305fb972f5cc83f83a8fbca1e64e93c9d1369880a9fd62ef95d23f91': [
+    'wss://relay.mostro.network',
+  ],
+  '000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb': [
+    'wss://relay.mostro.network',
+  ],
+};
+
+export const fetchValidMostroDTags = (): Promise<Set<string>> => {
+  const validDTags = new Set<string>();
+  const pool = new SimplePool();
+
+  const subscriptions = Object.entries(mostroAuthRelays).map(([pubkey, relays]) => {
+    return new Promise<void>(resolve => {
+      pool.subscribe(
+        relays,
+        {
+          kinds: [38383],
+          '#s': ['pending'],
+          authors: [pubkey],
+        },
+        {
+          id: `p2pMostroValid-${pubkey.slice(0, 8)}`,
+          onevent(event: Event) {
+            const dTag = event.tags.find(t => t[0] === 'd')?.[1] ?? '';
+            // Key by pubkey+dTag so each Mostro instance's d-tags are
+            // only considered valid for that instance, not shared across
+            // all instances.
+            if (dTag) validDTags.add(`${event.pubkey}:${dTag}`);
+          },
+          oneose() {
+            resolve();
+          },
+        }
+      );
+      setTimeout(resolve, 15000);
+    });
+  });
+
+  return Promise.all(subscriptions).then(() => validDTags);
 };
 
 export const updateExchangeRates: () => Promise<[Record<string, number>, string[]]> = async () => {
