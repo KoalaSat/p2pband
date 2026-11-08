@@ -421,12 +421,9 @@ const NostrEventsTable: React.FC = () => {
     ) {
       const updatedEvents: EventTableData[] = [];
 
-      events.forEach((event, dTag) => {
+      events.forEach(event => {
         const data = processEvent(event, exchangeRates);
-        if (data) {
-          data.dTag = dTag;
-          updatedEvents.push(data);
-        }
+        if (data) updatedEvents.push(data);
       });
 
       setTableEvents(updatedEvents);

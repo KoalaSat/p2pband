@@ -3,7 +3,7 @@ import { Modal, List, Typography, Tag, Button } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { Event, UnsignedEvent } from 'nostr-tools/lib/types/core';
 
-import { useNostrEvents } from 'context/NostrEventsContext';
+import { useNostrEvents, orderKey } from 'context/NostrEventsContext';
 import Title from 'antd/es/typography/Title';
 import { processEvent } from 'functions';
 import { EventTableData } from './NostrEventsTable';
@@ -95,7 +95,7 @@ const MyOrders: React.FC<MyOrdersProps> = ({ visible, onClose }) => {
         // Log the signed event
         console.log('Signed Nostr event:', signedEvent);
 
-        if (dTag) removeEvent(dTag[1]);
+        if (dTag) removeEvent(orderKey(eventToDelete.pubkey, dTag[1]));
         publishOrder(signedEvent);
       });
     }

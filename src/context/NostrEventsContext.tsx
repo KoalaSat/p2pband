@@ -7,7 +7,7 @@ import { Filter } from 'nostr-tools/lib/types/filter';
 interface NostrEventsContextType {
   pubkey: string | null;
   setPubkey: (pubkey: string | null) => void;
-  removeEvent: (dTag: string) => void;
+  removeEvent: (key: string) => void;
   webOfTrust: boolean;
   setWebOfTrust: (webOfTrust: boolean) => void;
   events: Map<string, Event | null>;
@@ -97,6 +97,14 @@ const rememberRemoval = (
   });
 };
 
+// Addressable events are unique per author and d-tag, so the author is part of
+// the key: otherwise anyone could replace or remove an order by reusing its d-tag.
+export const orderKey = (pubkey: string, dTag: string): string => `${pubkey}:${dTag}`;
+
+// How far ahead of our clock an event may be dated. A revision dated beyond this
+// would otherwise outrank every genuine update to the same order.
+const MAX_FUTURE_S = 15 * 60;
+
 // Single writer for the event Map. Kind 38383 is addressable, so several relays
 // can serve different revisions of the same d-tag; without a created_at guard a
 // stale `pending` copy arriving late re-inserts an order that was already
@@ -108,19 +116,20 @@ export const mergeEvent = (
   tombstones: Map<string, number> = removedAt
 ): void => {
   const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] ?? '';
-  if (!dTag) return;
+  if (!dTag || event.created_at > nowS + MAX_FUTURE_S) return;
 
-  const current = events.get(dTag);
-  const knownAt = current ? current.created_at : tombstones.get(dTag);
+  const key = orderKey(event.pubkey, dTag);
+  const current = events.get(key);
+  const knownAt = current ? current.created_at : tombstones.get(key);
   if (knownAt !== undefined && knownAt > event.created_at) return;
 
   const status = event.tags.find(tag => tag[0] === 's')?.[1];
   if (status !== 'pending' || isEventExpired(event, nowS)) {
-    events.delete(dTag);
-    rememberRemoval(tombstones, dTag, event.created_at, nowS);
+    events.delete(key);
+    rememberRemoval(tombstones, key, event.created_at, nowS);
   } else {
-    events.set(dTag, event);
-    tombstones.delete(dTag);
+    events.set(key, event);
+    tombstones.delete(key);
   }
 };
 
@@ -221,9 +230,9 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
     }
   };
 
-  const removeEvent = (dTag: string) => {
+  const removeEvent = (key: string) => {
     setEvents(m => {
-      m.delete(dTag);
+      m.delete(key);
       setEventsCount(m.size);
       return m;
     });

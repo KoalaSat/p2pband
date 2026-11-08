@@ -140,6 +140,7 @@ describe('isEventExpired', () => {
 describe('mergeEvent', () => {
   const NOW = 1_760_000_000;
   const HOUR = 60 * 60;
+  const KEY = `${MOSTRO_MAIN}:order-1`;
 
   const order = (createdAt: number, status: string, dTag = 'order-1'): Event =>
     ({
@@ -161,7 +162,7 @@ describe('mergeEvent', () => {
     const tombstones = new Map<string, number>();
     mergeEvent(events, order(NOW - HOUR, 'pending'), NOW, tombstones);
 
-    expect(events.has('order-1')).toBe(true);
+    expect(events.has(KEY)).toBe(true);
   });
 
   it('removes an order that is no longer pending', () => {
@@ -170,7 +171,7 @@ describe('mergeEvent', () => {
     mergeEvent(events, order(NOW - 2 * HOUR, 'pending'), NOW, tombstones);
     mergeEvent(events, order(NOW - HOUR, 'canceled'), NOW, tombstones);
 
-    expect(events.has('order-1')).toBe(false);
+    expect(events.has(KEY)).toBe(false);
   });
 
   // Regression: p2pMostroUpdates subscribes to several relays without an `#s`
@@ -182,7 +183,7 @@ describe('mergeEvent', () => {
     mergeEvent(events, order(NOW - HOUR, 'canceled'), NOW, tombstones);
     mergeEvent(events, order(NOW - 3 * HOUR, 'pending'), NOW, tombstones);
 
-    expect(events.has('order-1')).toBe(false);
+    expect(events.has(KEY)).toBe(false);
   });
 
   it('replaces a stored order with a newer revision', () => {
@@ -193,7 +194,7 @@ describe('mergeEvent', () => {
     mergeEvent(events, older, NOW, tombstones);
     mergeEvent(events, newer, NOW, tombstones);
 
-    expect(events.get('order-1')).toBe(newer);
+    expect(events.get(KEY)).toBe(newer);
   });
 
   it('does not store an already expired order', () => {
@@ -201,7 +202,7 @@ describe('mergeEvent', () => {
     const tombstones = new Map<string, number>();
     mergeEvent(events, order(NOW - 130 * 24 * HOUR, 'pending'), NOW, tombstones);
 
-    expect(events.has('order-1')).toBe(false);
+    expect(events.has(KEY)).toBe(false);
   });
 
   it('ignores an event carrying no d-tag', () => {

@@ -158,6 +158,7 @@ export const processEvent = (
     // Create the event data object first without the price
     const eventData: EventTableData = {
       id: event.id,
+      dTag: event.tags.find(tag => tag[0] === 'd')?.[1],
       pubkey: event.pubkey,
       source: sourceTag ? sourceTag[1] : '-',
       is: isTag ? isTag[1] : '-',
