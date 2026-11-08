@@ -135,3 +135,26 @@ test('restores the stored filter on the next visit', async () => {
 
   expect(await sourcesShown()).toEqual(['robosats']);
 });
+
+test('refreshes the HodlHodl offer list every two minutes', async () => {
+  jest.useFakeTimers();
+  try {
+    const hodlHodlCalls = () =>
+      (global.fetch as jest.Mock).mock.calls.filter(([url]) =>
+        String(url).includes('hodlhodl.com')
+      ).length;
+
+    renderTable();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(hodlHodlCalls()).toBe(1);
+
+    await act(async () => {
+      jest.advanceTimersByTime(2 * 60 * 1000);
+    });
+    expect(hodlHodlCalls()).toBe(2);
+  } finally {
+    jest.useRealTimers();
+  }
+});
