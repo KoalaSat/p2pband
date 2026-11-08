@@ -36,7 +36,6 @@ export const allowedPubkeys = [
   '7af6f7cfc3bfdf8aa65df2465aa7841096fa8ee6b2d4d14fc43d974e5db9ab96', // Robosats: Over the moon
   'f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c', // Robosats: TheBigLake
   '74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191', // Robosats: Temple of Sats
-  'fcc2a0bd8f5803f6dd8b201a1ddb67a4b6e268371fe7353d41d2b6684af7a61e', // LNP2PBot
   'a47457722e10ba3a271fbe7040259a3c4da2cf53bfd1e198138214d235064fc2', // Peach
   '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390', // Mostro
   '273e7880d38d39a7fb238efcf8957a1b5b27e819127a8483e975416a0a90f8d2', // HodlHodl
@@ -52,11 +51,11 @@ export const NostrEventsProvider: React.FC<NostrEventsProviderProps> = ({ childr
   const [relayPlatforms] = useState<Record<string, string[]>>({
     'wss://nostr.robosats.org': ['robosats', 'nostr'],
     'wss://freelay.sovbit.host': ['robosats', 'peach', 'nostr'],
-    'wss://relay.damus.io': ['lnp2pbot', 'peach', 'nostr'],
-    'wss://relay.snort.social': ['hodlhodl', 'lnp2pbot', 'nostr'],
+    'wss://relay.damus.io': ['peach', 'nostr'],
+    'wss://relay.snort.social': ['hodlhodl', 'nostr'],
     'wss://relay.mostro.network': ['mostro', 'nostr'],
     'wss://relay.primal.net': ['peach', 'hodlhodl', 'nostr'],
-    'wss://nos.lol': ['lnp2pbot', 'mostro', 'nostr'],
+    'wss://nos.lol': ['mostro', 'nostr'],
   });
   const relays = Object.keys(relayPlatforms);
   const [eventsLoading, setEventsLoading] = useState<boolean>(true);
