@@ -1,5 +1,7 @@
 import { EventTableData } from 'components/NostrEventsTable';
 import { Event } from 'nostr-tools/lib/types/core';
+import { SimplePool } from 'nostr-tools';
+import { isEventExpired } from 'context/NostrEventsContext';
 
 // Function to format amount values
 export const formatAmount = (value: string): string => {
@@ -72,17 +74,23 @@ export const processEvent = (
     const premiumTag = event.tags.find(tag => tag[0] === 'premium');
     const bondTag = event.tags.find(tag => tag[0] === 'bond');
     const paymentMethodsTag = event.tags.find(tag => tag[0] === 'pm');
-    const expirationTag = event.tags.find(tag => tag[0] === 'expiration');
 
-    // Check if the event has expired by comparing expiration timestamp with current time
-    if (expirationTag && expirationTag[1]) {
-      const expirationTimestamp = parseInt(expirationTag[1], 10);
-      const currentTimestamp = Math.floor(Date.now() / 1000); // Current time in seconds
+    // Skip expired events. For Mostro the NIP-40 expiration is capped at
+    // created_at + MOSTRO_PENDING_MAX_AGE_S, see isEventExpired.
+    if (isEventExpired(event)) {
+      return null;
+    }
 
-      // Skip expired events
-      if (!isNaN(expirationTimestamp) && expirationTimestamp < currentTimestamp) {
-        return null;
-      }
+    // Distinguish between decentralized Mostro instances by pubkey
+    const mostroInstances: Record<string, string> = {
+      '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': 'NostroMostro',
+      '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a': 'Kmbalache',
+      '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b': 'MostroColombia',
+      '00007cb3305fb972f5cc83f83a8fbca1e64e93c9d1369880a9fd62ef95d23f91': 'MostroBolivia',
+      '000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb': 'MostroVenezuela',
+    };
+    if (sourceTag?.[1] === 'mostro' && mostroInstances[event.pubkey]) {
+      sourceTag[1] = mostroInstances[event.pubkey];
     }
 
     if (sourceTag?.[1] === 'robosats' && linkTag?.[1]) {
@@ -150,6 +158,7 @@ export const processEvent = (
     // Create the event data object first without the price
     const eventData: EventTableData = {
       id: event.id,
+      dTag: event.tags.find(tag => tag[0] === 'd')?.[1],
       pubkey: event.pubkey,
       source: sourceTag ? sourceTag[1] : '-',
       is: isTag ? isTag[1] : '-',
@@ -230,6 +239,140 @@ export const calculateBtcPrice = (
   }
 };
 
+export const fetchValidHodlHodlOfferIds = async (): Promise<Set<string> | null> => {
+  const validIds = new Set<string>();
+  const limit = 100;
+  let offset = 0;
+
+  try {
+    while (true) {
+      const apiUrl = `https://hodlhodl.com/api/v1/offers?filters%5Basset_code%5D=BTC&pagination%5Blimit%5D=${limit}&pagination%5Boffset%5D=${offset}`;
+      const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      if (!data.offers || data.offers.length === 0) break;
+
+      data.offers.forEach((offer: { id: string }) => validIds.add(offer.id));
+
+      if (data.offers.length < limit) break;
+      offset += limit;
+    }
+  } catch (error) {
+    console.error('Error fetching HodlHodl active offers:', error);
+    return null;
+  }
+
+  return validIds.size > 0 ? validIds : null;
+};
+
+// Each Mostro instance's authoritative relay is the source of truth for its pending orders.
+const mostroAuthRelays: Record<string, string[]> = {
+  '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390': [
+    'wss://relay.mostro.network',
+  ],
+  '0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40': ['wss://relay.kilombino.com'],
+  '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a': [
+    'wss://relay.mostro.network',
+  ],
+  '00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b': [
+    'wss://relay.mostro.network',
+  ],
+  '00007cb3305fb972f5cc83f83a8fbca1e64e93c9d1369880a9fd62ef95d23f91': [
+    'wss://relay.mostro.network',
+  ],
+  '000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb': [
+    'wss://relay.mostro.network',
+  ],
+};
+
+export interface MostroValidation {
+  // Instances whose authoritative relay gave a usable answer. Only these get filtered.
+  validatedPubkeys: Set<string>;
+  // Valid orders, keyed `${pubkey}:${dTag}` so each instance's d-tags are only
+  // considered valid for that instance, not shared across all instances.
+  dTags: Set<string>;
+}
+
+export const fetchValidMostroDTags = (): Promise<MostroValidation> => {
+  const dTags = new Set<string>();
+  const validatedPubkeys = new Set<string>();
+  const pool = new SimplePool();
+
+  const subscriptions = Object.entries(mostroAuthRelays).map(([pubkey, relays]) => {
+    return new Promise<void>(resolve => {
+      const found = new Set<string>();
+      let settled = false;
+
+      // Fail open: an unreachable relay, a timeout or an empty answer must never
+      // be read as "this instance has no valid orders" — that would wipe the whole
+      // instance off the book. Only an EOSE carrying at least one order counts.
+      const finish = (reachedEose: boolean) => {
+        if (settled) return;
+        settled = true;
+        if (reachedEose && found.size > 0) {
+          validatedPubkeys.add(pubkey);
+          found.forEach(dTag => dTags.add(`${pubkey}:${dTag}`));
+        }
+        resolve();
+      };
+
+      try {
+        pool.subscribe(
+          relays,
+          {
+            kinds: [38383],
+            '#s': ['pending'],
+            authors: [pubkey],
+          },
+          {
+            id: `p2pMostroValid-${pubkey.slice(0, 8)}`,
+            onevent(event: Event) {
+              const dTag = event.tags.find(t => t[0] === 'd')?.[1] ?? '';
+              if (dTag) found.add(dTag);
+            },
+            oneose() {
+              finish(true);
+            },
+            onclose() {
+              finish(false);
+            },
+          }
+        );
+      } catch (error) {
+        console.error(`Error validating Mostro orders for ${pubkey.slice(0, 8)}:`, error);
+        finish(false);
+      }
+
+      setTimeout(() => finish(false), 15000);
+    });
+  });
+
+  return Promise.all(subscriptions).then(() => ({ validatedPubkeys, dTags }));
+};
+
+export const MOSTRO_SOURCES = [
+  'mostro',
+  'NostroMostro',
+  'Kmbalache',
+  'MostroColombia',
+  'MostroBolivia',
+  'MostroVenezuela',
+];
+
+// Orphaned orders are pending events still floating on aggregator relays that the
+// issuing instance's own relay no longer lists.
+export const isMostroOrderValid = (
+  event: Pick<EventTableData, 'source' | 'pubkey' | 'dTag'>,
+  validation: MostroValidation | null
+): boolean => {
+  if (!validation) return true;
+  if (!MOSTRO_SOURCES.includes(event.source)) return true;
+  if (!event.dTag) return true;
+  if (!validation.validatedPubkeys.has(event.pubkey)) return true;
+  return validation.dTags.has(`${event.pubkey}:${event.dTag}`);
+};
+
 export const updateExchangeRates: () => Promise<[Record<string, number>, string[]]> = async () => {
   console.log('Fetching exchange rates from multiple sources...');
 
@@ -303,4 +446,79 @@ export const updateExchangeRates: () => Promise<[Record<string, number>, string[
   }
 
   return [calculateAverageRates(newRateSources), Object.keys(newRateSources)];
+};
+
+export type SourceFilterMode = 'only' | 'except';
+
+// Platform filter predicate. An empty selection filters nothing in either mode.
+// Sources are the per-instance names processEvent assigns, so excluding `mostro`
+// leaves MostroColombia and the other instances on the book.
+export const matchesSourceFilter = (
+  event: Pick<EventTableData, 'source'>,
+  sources: string[],
+  mode: SourceFilterMode
+): boolean => {
+  if (sources.length === 0) return true;
+  return mode === 'except' ? !sources.includes(event.source) : sources.includes(event.source);
+};
+
+export interface FilterPreferences {
+  sourceMode: SourceFilterMode;
+  sources: string[];
+  type: string | null;
+  currency: string | null;
+  paymentMethod: string;
+}
+
+export const FILTER_STORAGE_KEY = 'p2pband.filters';
+
+export const DEFAULT_FILTERS: FilterPreferences = {
+  sourceMode: 'only',
+  sources: [],
+  type: null,
+  currency: null,
+  paymentMethod: '',
+};
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(item => typeof item === 'string');
+
+// Stored preferences are user-editable and outlive any given release, so every
+// field is validated on its own — a corrupt one falls back to its default
+// instead of discarding the rest.
+const sanitiseFilters = (raw: unknown): FilterPreferences => {
+  if (typeof raw !== 'object' || raw === null) return DEFAULT_FILTERS;
+  const candidate = raw as Record<string, unknown>;
+
+  return {
+    sourceMode: candidate.sourceMode === 'except' ? 'except' : DEFAULT_FILTERS.sourceMode,
+    sources: isStringArray(candidate.sources) ? candidate.sources : DEFAULT_FILTERS.sources,
+    type:
+      candidate.type === 'BUY' || candidate.type === 'SELL' ? candidate.type : DEFAULT_FILTERS.type,
+    currency:
+      typeof candidate.currency === 'string' ? candidate.currency : DEFAULT_FILTERS.currency,
+    paymentMethod:
+      typeof candidate.paymentMethod === 'string'
+        ? candidate.paymentMethod
+        : DEFAULT_FILTERS.paymentMethod,
+  };
+};
+
+export const loadFilters = (): FilterPreferences => {
+  try {
+    const raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
+    if (!raw) return DEFAULT_FILTERS;
+    return sanitiseFilters(JSON.parse(raw));
+  } catch (error) {
+    // Disabled storage, private mode or corrupt JSON: fall back to the defaults.
+    return DEFAULT_FILTERS;
+  }
+};
+
+export const saveFilters = (filters: FilterPreferences): void => {
+  try {
+    window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
+  } catch (error) {
+    // Storage may be unavailable or full; losing the preference is acceptable.
+  }
 };
