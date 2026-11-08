@@ -180,7 +180,10 @@ export const processEvent = (
         const derived = impliedPremium(fixedRate, currencyCode, exchangeRates);
 
         eventData.price = formatRate(fixedRate, currencyCode);
-        eventData.premium = derived;
+        // Without a market rate a non-zero declared premium is still information,
+        // but a literal 0 would claim the order is at market.
+        const declared = premiumTag && parseFloat(premiumTag[1]) !== 0 ? premiumTag[1] : null;
+        eventData.premium = derived ?? declared;
         // Only flag the premium as measured when it contradicts what the maker
         // declared. HodlHodl pins the sats too but publishes a premium that
         // matches within a rounding error, so marking those would be noise.
