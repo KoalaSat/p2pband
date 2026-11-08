@@ -384,6 +384,11 @@ const NostrEventsTable: React.FC = () => {
   // Fetch valid HodlHodl offer IDs in background to filter out inactive offers
   useEffect(() => {
     fetchValidHodlHodlOfferIds().then(setHodlHodlValidIds);
+    const interval = setInterval(
+      () => fetchValidHodlHodlOfferIds().then(setHodlHodlValidIds),
+      2 * 60 * 1000
+    );
+    return () => clearInterval(interval);
   }, []);
 
   // Effect to update prices when exchange rates change

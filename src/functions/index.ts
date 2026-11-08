@@ -230,17 +230,16 @@ export const calculateBtcPrice = (
   }
 };
 
-export const fetchValidHodlHodlOfferIds = async (): Promise<Set<string>> => {
+export const fetchValidHodlHodlOfferIds = async (): Promise<Set<string> | null> => {
   const validIds = new Set<string>();
   const limit = 100;
   let offset = 0;
 
   try {
     while (true) {
-      const response = await fetch(
-        `https://hodlhodl.com/api/v1/offers?filters%5Basset_code%5D=BTC&pagination%5Blimit%5D=${limit}&pagination%5Boffset%5D=${offset}`
-      );
-      if (!response.ok) break;
+      const apiUrl = `https://hodlhodl.com/api/v1/offers?filters%5Basset_code%5D=BTC&pagination%5Blimit%5D=${limit}&pagination%5Boffset%5D=${offset}`;
+      const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(apiUrl)}`);
+      if (!response.ok) return null;
 
       const data = await response.json();
       if (!data.offers || data.offers.length === 0) break;
@@ -252,9 +251,10 @@ export const fetchValidHodlHodlOfferIds = async (): Promise<Set<string>> => {
     }
   } catch (error) {
     console.error('Error fetching HodlHodl active offers:', error);
+    return null;
   }
 
-  return validIds;
+  return validIds.size > 0 ? validIds : null;
 };
 
 export const updateExchangeRates: () => Promise<[Record<string, number>, string[]]> = async () => {
