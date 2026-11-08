@@ -18,7 +18,14 @@ import cypherpunkQuotes from '../data/cypherpunkQuotes.json';
 import { ExportOutlined } from '@ant-design/icons';
 import OnionAddressWarning from './OnionAddressWarning';
 import * as isoCountryCurrency from 'iso-country-currency';
-import { processEvent, updateExchangeRates } from 'functions';
+import {
+  processEvent,
+  updateExchangeRates,
+  fetchValidHodlHodlOfferIds,
+  fetchValidMostroDTags,
+  isMostroOrderValid,
+  MostroValidation,
+} from 'functions';
 import { allowedPubkeys, useNostrEvents } from 'context/NostrEventsContext';
 import DepthChart from './DepthChart';
 import { FilterValue, SorterResult } from 'antd/es/table/interface';
@@ -29,6 +36,7 @@ const { Title } = Typography;
 // Define the structure of the processed event data for the table
 export interface EventTableData {
   id: string;
+  dTag?: string;
   source: string;
   is: string;
   amount: string;
@@ -124,6 +132,8 @@ const NostrEventsTable: React.FC = () => {
   const [ratesLoading, setRatesLoading] = useState<boolean>(true);
   const [rateSources, setRateSources] = useState<string[]>([]);
   const [sortedInfo, setSortedInfo] = useState<SorterResult<SorterInfo>>({});
+  const [hodlHodlValidIds, setHodlHodlValidIds] = useState<Set<string> | null>(null);
+  const [mostroValidation, setMostroValidation] = useState<MostroValidation | null>(null);
 
   // Filter states
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
@@ -169,6 +179,29 @@ const NostrEventsTable: React.FC = () => {
     setCurrentPage(page);
   };
 
+  // Returns a comparator function for the given sorter, or null if no sort is active
+  const getSortFunction = (
+    sorter: SorterResult<SorterInfo>
+  ): ((a: EventTableData, b: EventTableData) => number) | null => {
+    if (!sorter.columnKey || !sorter.order) return null;
+    return (a: EventTableData, b: EventTableData) => {
+      if (sorter.columnKey === 'premium') {
+        const premiumA = a.premium ? parseFloat(a.premium) : 0;
+        const premiumB = b.premium ? parseFloat(b.premium) : 0;
+        return sorter.order === 'ascend' ? premiumA - premiumB : premiumB - premiumA;
+      } else if (sorter.columnKey === 'bond') {
+        const bondA = a.bond ? parseFloat(a.bond) : 0;
+        const bondB = b.bond ? parseFloat(b.bond) : 0;
+        return sorter.order === 'ascend' ? bondA - bondB : bondB - bondA;
+      } else if (sorter.columnKey === 'created_at') {
+        return sorter.order === 'ascend'
+          ? a.created_at - b.created_at
+          : b.created_at - a.created_at;
+      }
+      return 0;
+    };
+  };
+
   // Handle table change for sorting
   const handleTableChange = (
     _pagination: TablePaginationConfig,
@@ -178,32 +211,11 @@ const NostrEventsTable: React.FC = () => {
     setSortedInfo(sorter);
 
     if (sorter && sorter.columnKey) {
-      // Create sorting function based on the column that was clicked
-      const sortFunction = (a: EventTableData, b: EventTableData) => {
-        if (sorter.columnKey === 'premium') {
-          const premiumA = a.premium ? parseFloat(a.premium) : 0;
-          const premiumB = b.premium ? parseFloat(b.premium) : 0;
-          return sorter.order === 'ascend' ? premiumA - premiumB : premiumB - premiumA;
-        } else if (sorter.columnKey === 'bond') {
-          const bondA = a.bond ? parseFloat(a.bond) : 0;
-          const bondB = b.bond ? parseFloat(b.bond) : 0;
-          return sorter.order === 'ascend' ? bondA - bondB : bondB - bondA;
-        } else if (sorter.columnKey === 'created_at') {
-          // Default sorting by timestamp (newest first or oldest first)
-          return sorter.order === 'ascend'
-            ? a.created_at - b.created_at
-            : b.created_at - a.created_at;
-        }
-        return 0;
-      };
-
-      // Sort both the original and filtered events
-      const sortedEvents = [...tableEvents].sort(sortFunction);
-      const sortedFilteredEvents = [...filteredEvents].sort(sortFunction);
-
-      // Update both state variables
-      setTableEvents(sortedEvents);
-      setFilteredEvents(sortedFilteredEvents);
+      const sortFn = getSortFunction(sorter);
+      if (sortFn) {
+        setTableEvents(prev => [...prev].sort(sortFn));
+        setFilteredEvents(prev => [...prev].sort(sortFn));
+      }
     }
   };
 
@@ -356,6 +368,22 @@ const NostrEventsTable: React.FC = () => {
       );
     }
 
+    // Filter out HodlHodl offers that are no longer active
+    if (hodlHodlValidIds !== null) {
+      result = result.filter(event => {
+        if (event.source !== 'hodlhodl') return true;
+        const match = event.link.match(/hodlhodl\.com\/offers\/([^?/]+)/);
+        return match ? hodlHodlValidIds.has(match[1]) : true;
+      });
+    }
+
+    // Filter out orphaned Mostro orders not found on authoritative relays
+    result = result.filter(event => isMostroOrderValid(event, mostroValidation));
+
+    // Re-apply active sort so incoming events don't disrupt the user's chosen order
+    const sortFn = getSortFunction(sortedInfo);
+    if (sortFn) result = [...result].sort(sortFn);
+
     setFilteredEvents(result);
     setTotalEvents(result.length);
   };
@@ -363,6 +391,26 @@ const NostrEventsTable: React.FC = () => {
   // Main effect to coordinate data loading
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Fetch valid HodlHodl offer IDs in background to filter out inactive offers
+  useEffect(() => {
+    fetchValidHodlHodlOfferIds().then(setHodlHodlValidIds);
+    const interval = setInterval(
+      () => fetchValidHodlHodlOfferIds().then(setHodlHodlValidIds),
+      2 * 60 * 1000
+    );
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch valid Mostro d-tags from authoritative relays to filter out orphaned orders
+  useEffect(() => {
+    fetchValidMostroDTags().then(setMostroValidation);
+    const interval = setInterval(
+      () => fetchValidMostroDTags().then(setMostroValidation),
+      2 * 60 * 1000
+    );
+    return () => clearInterval(interval);
   }, []);
 
   // Effect to update prices when exchange rates change
@@ -387,7 +435,16 @@ const NostrEventsTable: React.FC = () => {
   // Effect to filter events when filter states or events change
   useEffect(() => {
     calculateFilteredevents(tableEvents);
-  }, [sourceFilter, typeFilter, currencyFilter, paymentMethodFilter, webOfTrust]);
+  }, [
+    tableEvents,
+    sourceFilter,
+    typeFilter,
+    currencyFilter,
+    paymentMethodFilter,
+    webOfTrust,
+    hodlHodlValidIds,
+    mostroValidation,
+  ]);
 
   // Calculate current page data from filtered events
   const startIndex = (currentPage - 1) * pageSize;
@@ -402,7 +459,7 @@ const NostrEventsTable: React.FC = () => {
       key: 'source',
       render: (text: string) => {
         // Try to load the image from public/assets with the naming convention {value}.small.png
-        const imagePath = `/assets/${text}.small.png`;
+        const imagePath = `${process.env.PUBLIC_URL}/assets/${text}.small.png`;
         return (
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <img
