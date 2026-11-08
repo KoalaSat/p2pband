@@ -530,3 +530,54 @@ describe('processEvent fixed-price orders', () => {
     expect(data?.price).toBe(rate(105000, 'USD'));
   });
 });
+
+describe('processEvent link', () => {
+  const linkOf = (tags: string[][]) =>
+    processEvent(
+      {
+        id: 'id',
+        pubkey: MOSTRO_MAIN,
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 38383,
+        sig: 'sig',
+        content: '',
+        tags,
+      } as Event,
+      {}
+    )?.link;
+
+  it('opens Mostro orders in the web client', () => {
+    const orderLink = `mostro:7fde3d48-2882-4c83-8199-f9dca31d9078?relays=wss://relay.mostro.network,wss://nos.lol&mostro=${MOSTRO_MAIN}`;
+
+    expect(
+      linkOf([
+        ['y', 'mostro', 'Mostro'],
+        ['source', orderLink],
+      ])
+    ).toBe(
+      `https://mostro.network/app/#/order_link?link=mostro%3A7fde3d48-2882-4c83-8199-f9dca31d9078%3Frelays%3Dwss%3A%2F%2Frelay.mostro.network%2Cwss%3A%2F%2Fnos.lol%26mostro%3D${MOSTRO_MAIN}`
+    );
+  });
+
+  it('keeps the link of other platforms unchanged', () => {
+    expect(
+      linkOf([
+        ['y', 'hodlhodl'],
+        ['source', 'https://hodlhodl.com/offers/abc'],
+      ])
+    ).toBe('https://hodlhodl.com/offers/abc');
+  });
+
+  it('keeps rewriting RoboSats coordinator names', () => {
+    expect(
+      linkOf([
+        ['y', 'robosats', 'bitcoinveneto'],
+        ['source', 'https://example.org/order/bitcoinveneto/1'],
+      ])
+    ).toBe('https://example.org/order/veneto/1');
+  });
+
+  it('shows a dash when the event has no link', () => {
+    expect(linkOf([['y', 'mostro', 'Mostro']])).toBe('-');
+  });
+});

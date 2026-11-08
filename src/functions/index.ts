@@ -58,6 +58,12 @@ export const calculateAverageRates = (
   return averageRates;
 };
 
+// Mostro order links use the mostro: scheme, which only native apps can open.
+const toWebLink = (link: string): string =>
+  link.startsWith('mostro:')
+    ? `https://mostro.network/app/#/order_link?link=${encodeURIComponent(link)}`
+    : link;
+
 // Function to process raw Nostr events into the format needed for the table
 export const processEvent = (
   event: Event | null,
@@ -159,7 +165,7 @@ export const processEvent = (
       is: isTag ? isTag[1] : '-',
       amount: formattedAmount,
       currencyCode: currencyCode,
-      link: linkTag ? linkTag[1] : '-',
+      link: linkTag ? toWebLink(linkTag[1]) : '-',
       created_at: event.created_at || 0,
       premium: premiumTag ? premiumTag[1] : null,
       bond: bondTag ? bondTag[1] : null,
